@@ -64,6 +64,10 @@ Your map is **not embedded in the HTML file**. You can update or share the HTML 
 
 This is an unofficial, fan-made tool and is not affiliated with or endorsed by the creators of MONOMOON. Game imagery and other game-related assets remain the property of their respective owners.
 
+### Development
+
+MONOMOON Map was developed using OpenAI's ChatGPT. The project's design, features and functionality were directed and tested by the repository owner, with the application code largely generated through AI assistance and refined through iterative testing and feedback.
+
 ## Licence
 
 The code is released under the [MIT License](LICENSE). You may use, modify and redistribute it under the terms of that licence.
