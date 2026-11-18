@@ -1,0 +1,2187 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>MONOMOON Map</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2096%2096%27%3E%3Ctext%20x%3D%2748%27%20y%3D%2769%27%20text-anchor%3D%27middle%27%20font-size%3D%2765%27%20font-family%3D%27Segoe%20UI%20Emoji%2CApple%20Color%20Emoji%2CNoto%20Color%20Emoji%2Csans-serif%27%3E%F0%9F%8C%99%3C%2Ftext%3E%3C%2Fsvg%3E">
+  <style>
+    :root { color-scheme: dark; --text: #f5f4fa; --muted: #b5b5c6; --violet: #c9b4ff; --frost: rgba(21, 22, 34, .84); }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body { background: #101019; color: var(--text); font: 14px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; user-select: none; -webkit-user-select: none; }
+    #map { display: block; width: 100vw; height: 100dvh; cursor: grab; touch-action: none; outline: none; }
+    #map.dragging { cursor: grabbing; }
+    #map.placing { cursor: crosshair; }
+    .tile-menu { position: fixed; z-index: 12; width: 190px; padding: 6px; border: 1px solid rgba(222,219,255,.23); border-radius: 11px; background: rgba(23,22,34,.98); box-shadow: 0 12px 36px #000b; backdrop-filter: blur(16px); }
+    [hidden] { display: none !important; }
+    .tile-menu[hidden], .move-banner[hidden] { display: none !important; }
+    .marker-tooltip { position: fixed; z-index: 9; pointer-events: none; max-width: min(340px, calc(100vw - 28px)); white-space: pre-wrap; overflow-wrap: anywhere; padding: 8px 11px; border-radius: 9px; border: 1px solid rgba(232,211,146,.48); background: rgba(25,23,34,.97); box-shadow: 0 6px 24px #0009; color: #fff6d8; font-size: 13px; }
+    .marker-editor { position: fixed; z-index: 16; width: min(315px, calc(100vw - 24px)); max-height:calc(100dvh - 16px); overflow-y:auto; background: rgba(27,24,39,.99); border: 1px solid rgba(237,209,144,.6); border-radius: 12px; padding: 11px; box-shadow: 0 12px 36px #000b; }
+    .marker-editor label { display: block; font-size: 12px; color: #e9d9ad; margin-bottom: 7px; }
+    .marker-editor textarea { display: block; width: 100%; min-height: 88px; resize: vertical; overflow-y: hidden; border-radius: 8px; border: 1px solid #716578; background: #14121c; color: #fff; padding: 9px 10px; font: inherit; user-select: text; -webkit-user-select: text; }
+    .marker-editor .editor-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 9px; }
+    .marker-editor button { padding: 7px 12px; border-radius: 7px; border: 1px solid #60556a; background: #373043; }
+    .marker-editor button.primary { background: #c6a3f2; border-color: #c6a3f2; color: #1b1027; font-weight: 700; }
+    #markersButton { padding: 0 11px; min-width: 130px; font-weight: 620; display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+    #gridButton { padding: 0 12px; min-width: 106px; font-weight: 620; display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+    #gridButton.off { color: #c4bfd2; }
+    #gridButton .grid-icon { width: 18px; height: 18px; flex: none; stroke: #ffffff; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    #gridButton.off .grid-icon { stroke: #75737f; }
+    .pan-speed-row { display: block; padding: 8px 11px 9px; }
+    .pan-speed-row .speed-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 13px; }
+    .pan-speed-row output { color: #d9c7ff; font-variant-numeric: tabular-nums; }
+    .pan-speed-row input[type="range"] { width: 100%; margin: 10px 0 1px; accent-color: #c4a6ff; cursor: pointer; }
+    .pan-speed-row .speed-note { font-size: 11px; color: var(--muted); }
+    #markersButton.off { color: #c4bfd2; }
+    .toolbar-marker-pin { width: 17.25px; height: 21px; flex: none; overflow: visible; }
+    .toolbar-marker-pin .pin-fill { fill: #ff3448; }
+    .toolbar-marker-pin .pin-rim { stroke: #090714; }
+    .toolbar-marker-pin .pin-outline { stroke: #ffffff; }
+    .toolbar-marker-pin .pin-centre { fill: #ffffff; stroke: #4a0914; }
+    #markersButton.off .pin-fill { fill: #09090e; }
+    #markersButton.off .pin-rim { stroke: #050507; }
+    #markersButton.off .pin-outline { stroke: #72717d; }
+    #markersButton.off .pin-centre { fill: #5b5b65; stroke: #121218; }
+    .marker-colours-title { display:block; margin: 9px 0 7px; color:#e9d9ad; font-size:12px; }
+    .marker-colour-choices { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:7px; }
+    .marker-colour-swatch { position:relative; min-width:0; aspect-ratio:1; border-radius:9px; display:flex; align-items:center; justify-content:center; background:#17131e; border:2px solid #665e72; padding:5px; }
+    .marker-colour-swatch::before { content:''; width:23px; height:23px; border-radius:50%; background:var(--swatch); border:2px solid #fff; box-shadow:0 1px 4px #000a; }
+    .marker-colour-swatch[aria-pressed="true"] { border-color:#fff; background:#494059; box-shadow:0 0 0 2px #a88ae5; }
+    .marker-colour-swatch:hover { background:#40384e; }
+    .marker-colour-swatch:focus-visible { outline:2px solid #fff; outline-offset:3px; }
+    .marker-editor .marker-colour-swatch { padding: 5px; border-radius: 9px; border-width: 2px; background: #17131e; }
+    .marker-editor .marker-colour-swatch[aria-pressed="true"] { background: #494059; border-color:#fff; }
+    .marker-editor .marker-colour-swatch:hover { background:#40384e; }
+    .marker-colour-menu { position:fixed; z-index:17; width:310px; max-width:calc(100vw - 16px); max-height:calc(100dvh - 16px); overflow-y:auto; padding:13px; border:1px solid #756783; border-radius:11px; background:#211c2c; box-shadow:0 10px 36px #000c; }
+    .marker-colour-menu .appearance-heading { display:block; margin:0 0 10px; font-size:14px; }
+    .marker-shapes-title { display:block; margin:12px 0 7px; color:#e9d9ad; font-size:12px; }
+    .marker-shape-choices { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
+    .marker-shape-swatch { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; min-width:0; height:54px; padding:4px; border:2px solid #665e72; border-radius:9px; background:#17131e; font-size:10px; color:#e9e5f4; }
+    .marker-shape-swatch svg { width:37px; height:38px; flex:none; overflow:visible; }
+    .marker-shape-swatch svg[data-reduced-size="true"] { transform:scale(.9); }
+    .marker-shape-swatch[aria-pressed="true"] { border-color:#fff; background:#494059; box-shadow:0 0 0 2px #a88ae5; }
+    .marker-editor .marker-shape-swatch { padding:4px; border-width:2px; background:#17131e; }
+    .marker-shape-swatch:hover { background:#40384e; }
+    .marker-shape-swatch:focus-visible { outline:2px solid #fff; outline-offset:3px; }
+    .marker-colour-menu .editor-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:14px; }
+    .marker-colour-menu .editor-actions button { padding:8px 13px; border:1px solid #60556a; border-radius:7px; background:#373043; }
+    .marker-colour-menu .editor-actions button.primary { background:#c6a3f2; border-color:#c6a3f2; color:#1b1027; font-weight:700; }
+    #markerMenu { width: 190px; }
+    #markerMenuLocation { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tile-menu .tile-location { padding: 5px 10px 8px; font-size: 11px; color: #aea7c1; }
+    .tile-menu button { display: flex; align-items: center; gap: 9px; width: 100%; padding: 10px; text-align: left; background: transparent; border: 0; border-radius: 7px; }
+    .menu-action-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 20px; width: 20px; min-height: 21px; font-size: 17px; line-height: 1; }
+    .menu-action-icon .toolbar-marker-pin { width: 17.25px; height: 21px; }
+    .move-action-icon { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+    .tile-menu button:hover, .tile-menu button:focus-visible { background: rgba(222,214,255,.12); outline: none; }
+    .tile-menu button.danger { color: #ffb7be; }
+    .move-banner { position: fixed; z-index: 6; top: 74px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; max-width: calc(100vw - 28px); padding: 9px 11px 9px 15px; border: 1px solid rgba(207,180,255,.38); border-radius: 12px; background: rgba(25,21,40,.94); box-shadow: 0 5px 30px #0007; backdrop-filter: blur(14px); }
+    .move-banner .move-info { color: #eee7ff; font-size: 12px; }
+    .move-banner strong { color: #fff; }
+    .move-banner button { background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.2); border-radius: 7px; padding: 6px 10px; white-space: nowrap; }
+    .move-banner button:hover { background: rgba(255,255,255,.18); }
+    .top-bar { position: fixed; z-index: 4; top: 0; left: 0; right: 0; display: flex; align-items: flex-start; justify-content: space-between; padding: 20px 24px; pointer-events: none; background: linear-gradient(180deg, rgba(8,8,17,.76), transparent); }
+    .brand { pointer-events: none; font-size: clamp(17px, 2.15vw, 23px); font-weight: 730; letter-spacing: -.045em; text-shadow: 0 1px 16px #060609; white-space: nowrap; }
+    .brand .moon { letter-spacing: 0; font-size: 1.03em; margin-right: 1px; }
+    .brand .mapword { color: #d8d1e9; font-weight: 470; letter-spacing: -.025em; }
+    .actions { display: flex; gap: 8px; align-items: flex-start; pointer-events: auto; margin-left: auto; }
+    button { font: inherit; cursor: pointer; color: inherit; }
+    .glass-btn { min-height: 40px; border: 1px solid rgba(226,222,255,.2); color: #f8f6ff; background: var(--frost); border-radius: 11px; box-shadow: 0 3px 18px #06050a3b; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); transition: background .15s, border-color .15s, transform .15s; }
+    .glass-btn:hover { background: rgba(46,42,64,.95); border-color: rgba(226,222,255,.36); }
+    .glass-btn:active { transform: scale(.96); }
+    .glass-btn:focus-visible, .menu button:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+    #layerButton { min-width: 127px; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; gap: 14px; font-weight: 650; }
+    #layerButton .swap { opacity: .52; font-size: 17px; font-weight: 400; }
+    #layerButton.inside { border-color: rgba(199,180,255,.55); background: rgba(51,37,79,.9); }
+    #moreButton { min-width: 41px; width: 41px; padding: 0; font-size: 22px; letter-spacing: 1px; line-height: 1; }
+    .menu { position: absolute; pointer-events: auto; top: 69px; right: 24px; width: 315px; max-width: calc(100vw - 28px); max-height: calc(100dvh - 84px); overflow-y: auto; padding: 8px; border-radius: 13px; border: 1px solid rgba(222,219,255,.17); background: rgba(20,20,31,.97); box-shadow: 0 14px 38px #0008; backdrop-filter: blur(20px); }
+    .menu[hidden], .dialog-backdrop[hidden], #toast[hidden], .welcome[hidden], .connection-banner[hidden] { display: none !important; }
+    .connection-banner { position: fixed; top: 72px; left: 50%; transform: translateX(-50%); z-index: 6; display: flex; align-items: center; gap: 12px; padding: 10px 14px; max-width: calc(100vw - 24px); background: rgba(76,28,34,.96); border: 1px solid #f1a9ac; border-radius: 11px; color: #fff5f4; box-shadow: 0 10px 30px #0009; font-size: 12px; }
+    .connection-banner button { background: #ffe2d9; color: #3e1717; border: 0; border-radius: 7px; padding: 8px 12px; font-weight: 700; flex-shrink: 0; }
+    .connection-banner button.secondary { background: #34262b; border: 1px solid #c89ba0; color: #fff4f5; }
+    .connection-actions { display: flex; flex-shrink: 0; gap: 8px; }
+    .connection-banner button:disabled { opacity: .55; cursor: progress; }
+    @media(max-width:720px) { .connection-banner { flex-wrap: wrap; justify-content: center; } .connection-actions { width: 100%; justify-content: flex-end; } }
+    .folder-state { display: inline-block; margin-right: 3px; font-size: 11px; color: #f5c0c0; }
+    .folder-state.connected { color: #a4efb9; }
+    .migration-dialog { width: min(570px,100%); }
+    .migration-dialog .choice { display:block; padding: 11px; background: #17131f; border: 1px solid #514861; border-radius: 10px; margin-bottom: 12px; font-size: 13px; }
+    .migration-dialog select { width: 100%; margin-top: 7px; background: #121019; border: 1px solid #756783; border-radius: 7px; color: #fff; font: inherit; padding: 10px; }
+    .migration-dialog .details { font-size: 12px; line-height: 1.55; padding: 12px; background: #191626; border-radius: 8px; margin-bottom: 14px; color:#d9cfe8; }
+    .dialog-footer button:disabled { opacity: .5; cursor: not-allowed; }
+    @media(max-width:540px) { .connection-banner { top:65px; width: calc(100vw - 20px); } }
+    .menu button, .menu .checkbox-row { width: 100%; display: flex; justify-content: flex-start; gap: 9px; align-items: center; background: transparent; border: 0; border-radius: 8px; text-align: left; padding: 10px 11px; }
+    .menu button:hover, .menu .checkbox-row:hover { background: rgba(222,214,255,.095); }
+    .menu button:disabled { opacity: .48; cursor: not-allowed; }
+    .menu button[hidden] { display: none !important; }
+    .menu .divider { height: 1px; margin: 5px 7px; background: rgba(255,255,255,.1); }
+    .checkbox-row input { accent-color: #bb9fff; }
+    .menu .muted { display: block; color: var(--muted); padding: 8px 11px 6px; font-size: 12px; }
+    .bottom-bar { position: fixed; z-index: 2; left: 22px; bottom: 19px; right: 22px; display: flex; align-items: flex-end; justify-content: space-between; pointer-events: none; gap: 20px; }
+    .help { pointer-events: none; min-width: 0; max-width: none; flex: 0 1 auto; color: #dfdce8bd; font-size: 12px; text-shadow: 0 1px 6px #000a; }
+    .zoomtools { display: flex; gap: 7px; flex-shrink: 0; pointer-events: auto; margin-left: auto; }
+    .zoomtools button { width: 37px; height: 37px; min-height: 37px; padding: 0; font-size: 19px; }
+    #toast { position: fixed; z-index: 8; left: 50%; bottom: 75px; transform: translateX(-50%); max-width: min(690px, calc(100vw - 30px)); padding: 10px 16px; background: rgba(30,25,46,.97); color: #f9f6ff; border: 1px solid rgba(206,180,255,.35); border-radius: 11px; text-align: center; box-shadow: 0 10px 34px #0006; pointer-events: none; }
+    #toast.error { border-color: #e78d9a; background: rgba(72,28,37,.97); }
+    .welcome { position: fixed; left: 50%; top: 46%; z-index: 1; width: min(440px, calc(100vw - 36px)); text-align: center; transform: translate(-50%, -50%); pointer-events: none; color: rgba(244,238,255,.8); }
+    .welcome .big-moon { font-size: 47px; display: block; margin-bottom: 10px; filter: drop-shadow(0 0 25px #8673b744); }
+    .welcome strong { font-size: 20px; font-weight: 670; letter-spacing: -.015em; display: block; margin-bottom: 6px; }
+    .welcome p { margin: 0; color: #b6afc8; line-height: 1.6; }
+    kbd { font: inherit; color: #faf7ff; background: rgba(230,210,255,.14); border: 1px solid rgba(230,210,255,.2); border-radius: 4px; padding: 1px 5px; }
+    .dialog-backdrop { position: fixed; z-index: 20; inset: 0; background: #06040bb5; display: grid; place-items: center; padding: 18px; }
+    .dialog { width: min(460px, 100%); max-height: calc(100dvh - 36px); overflow-y: auto; background: #242130; border: 1px solid #585069; box-shadow: 0 18px 80px #000b; padding: 24px; border-radius: 17px; }
+    .dialog h2 { margin: 0 0 8px; font-size: 20px; }
+    .dialog p { color: #c5bed2; font-size: 13px; margin: 0 0 20px; }
+    .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .fields label { font-size: 12px; color: #d3ccdd; }
+    .fields input { display: block; width: 100%; height: 40px; margin-top: 5px; border-radius: 8px; border: 1px solid #6c607a; background: #16131e; color: #fff; font: inherit; padding: 0 11px; }
+    .crop-preview { overflow: hidden; margin: -4px 0 17px; border-radius: 8px; background: #100e16; border: 1px solid #55485f; }
+    #cropPreview { display: block; width: 100%; height: auto; max-height: 210px; object-fit: contain; }
+    .crop-caption { margin-top: 7px; font-size: 12px; color: #d0c8d7; }
+    .dialog-footer { display: flex; flex-wrap: wrap; justify-content: flex-end; margin-top: 22px; gap: 10px; }
+    .dialog-footer #autoCropButton { margin-right: auto; }
+    .dialog-footer button { border-radius: 8px; min-width: 91px; padding: 9px 13px; border: 1px solid #5a5367; background: #34303f; }
+    .dialog-footer button.primary { background: #aa8ce8; color: #170d2a; border-color: #aa8ce8; font-weight: 700; }
+    .dialog-footer button:hover { filter: brightness(1.13); }
+    @media(max-width: 540px) { .move-banner { top: 64px; } .move-banner .move-info { font-size: 11px; } .top-bar { padding: 14px 14px; } .menu { right: 14px; top: 62px; } .bottom-bar { left: 14px; right: 14px; bottom: 13px; } .help { max-width: none; line-height: 1.55; } .brand { margin-top: 5px; font-size: 16px; } #layerButton { min-width: 105px; padding: 0 10px; gap: 5px; } }
+  </style>
+</head>
+<body>
+  <canvas id="map" aria-label="MONOMOON interactive screenshot map"></canvas>
+  <header class="top-bar">
+    <div class="brand"><span class="moon">🌙</span>MONOMOON <span class="mapword">Map</span></div>
+    <div class="actions">
+      <button id="gridButton" class="glass-btn" title="Toggle grid overlay (G)" aria-pressed="true"><svg class="grid-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M9 3v18 M15 3v18 M3 9h18 M3 15h18"/></svg><span id="gridButtonLabel">Grid on</span></button>
+      <button id="markersButton" class="glass-btn" title="Toggle markers (Ctrl+Space)" aria-pressed="true"><svg class="toolbar-marker-pin" viewBox="0 0 32 42" aria-hidden="true" focusable="false"><path class="pin-fill pin-rim" d="M16 39 C9 29 3 24 3 16 A13 13 0 0 1 29 16 C29 24 23 29 16 39Z" stroke-width="6" stroke-linejoin="round"/><path class="pin-fill pin-outline" d="M16 39 C9 29 3 24 3 16 A13 13 0 0 1 29 16 C29 24 23 29 16 39Z" stroke-width="3" stroke-linejoin="round"/><circle class="pin-centre" cx="16" cy="16" r="5.3" stroke-width="2.3"/></svg><span id="markersButtonLabel">Markers on</span></button>
+      <button id="layerButton" class="glass-btn" title="Switch between outside and inside maps (Space)"><span id="layerName">✨ Outside</span><span class="swap">⇄</span></button>
+      <button id="moreButton" class="glass-btn" aria-label="Map options" aria-expanded="false">⋯</button>
+    </div>
+    <div class="menu" id="menu" hidden>
+      <button id="cropButton">✂ &nbsp; Adjust screenshot crop</button>
+      <label class="checkbox-row"><input type="checkbox" id="guideCheckbox" checked> Show other map faintly</label>
+      <label class="checkbox-row"><input type="checkbox" id="backgroundGridCheckbox" checked> Always show grid on empty tiles</label>
+      <label class="pan-speed-row" for="panSpeedSlider">
+        <span class="speed-heading"><span>Keyboard pan speed</span><output id="panSpeedValue" for="panSpeedSlider">140%</output></span>
+        <input type="range" id="panSpeedSlider" min="50" max="250" step="10" value="140" aria-label="Keyboard pan speed percentage">
+        <span class="speed-note">100% = previous speed · applies to WASD and arrow keys</span>
+      </label>
+      <label class="pan-speed-row" for="markerSizeSlider">
+        <span class="speed-heading"><span>Marker size</span><output id="markerSizeValue" for="markerSizeSlider">100%</output></span>
+        <input type="range" id="markerSizeSlider" min="0" max="200" step="1" value="100" aria-label="Marker size percentage" aria-valuemin="10" aria-valuemax="150" aria-valuenow="100" aria-valuetext="100%">
+        <span class="speed-note">10% minimum · 100% in the middle · 150% maximum</span>
+      </label>
+      <div class="divider"></div>
+      <label class="checkbox-row"><input type="checkbox" id="hideHintCheckbox"> Hide hint text</label>
+      <label class="checkbox-row"><input type="checkbox" id="hideZoomCheckbox"> Hide zoom buttons (−/+)</label>
+      <label class="checkbox-row"><input type="checkbox" id="hideTogglesCheckbox"> Hide map toggles (Grid, Markers, Inside/Outside)</label>
+      <label class="checkbox-row"><input type="checkbox" id="hideTitleCheckbox"> Hide map title</label>
+      <div class="divider"></div>
+      <button id="folderButton">📁 &nbsp; Open map folder…</button>
+      <button id="selectNewFolderButton" hidden>📂 &nbsp; Select new folder…</button>
+      <button id="loadFolderButton" hidden>↻ &nbsp; Reload map from folder</button>
+      <span class="muted" id="folderText">Folder required for saving.</span>
+      <button id="legacyImportButton" hidden>⇣ &nbsp; Recover older browser screenshots…</button>
+      <button id="clearBrowserButton" hidden>🗑 &nbsp; Remove old browser copies…</button>
+      <div class="divider"></div>
+      <button id="exportButton">↓ &nbsp; Export map backup</button>
+      <button id="importButton">↑ &nbsp; Restore map backup</button>
+      <div class="divider"></div>
+      <span class="muted" id="savedText">Connect a folder to save your map.</span>
+    </div>
+  </header>
+  <div id="connectionBanner" class="connection-banner" hidden><span id="connectionText">Map folder disconnected — editing disabled to prevent unsaved changes.</span><div class="connection-actions"><button id="reconnectButton">Connect folder</button><button id="selectNewFolderBanner" class="secondary" hidden>Select new folder</button></div></div>
+  <div id="tileMenu" class="tile-menu" role="menu" aria-label="Screenshot actions" hidden>
+    <div class="tile-location" id="tileMenuLocation"></div>
+    <button id="moveTileButton" role="menuitem"><span class="menu-action-icon"><svg class="move-action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2v20 M2 12h20 M8 6l4-4 4 4 M8 18l4 4 4-4 M6 8l-4 4 4 4 M18 8l4 4-4 4"/></svg></span>Move screenshot</button>
+    <button id="deleteTileButton" class="danger" role="menuitem"><span class="menu-action-icon">❌</span>Delete screenshot</button>
+    <button id="addMarkerButton" role="menuitem"><span class="menu-action-icon"><svg class="toolbar-marker-pin" viewBox="0 0 32 42" aria-hidden="true" focusable="false"><path class="pin-fill pin-rim" d="M16 39 C9 29 3 24 3 16 A13 13 0 0 1 29 16 C29 24 23 29 16 39Z" stroke-width="6" stroke-linejoin="round"/><path class="pin-fill pin-outline" d="M16 39 C9 29 3 24 3 16 A13 13 0 0 1 29 16 C29 24 23 29 16 39Z" stroke-width="3" stroke-linejoin="round"/><circle class="pin-centre" cx="16" cy="16" r="5.3" stroke-width="2.3"/></svg></span>Add marker</button>
+  </div>
+  <div id="markerMenu" class="tile-menu" role="menu" aria-label="Marker actions" hidden>
+    <div class="tile-location" id="markerMenuLocation">Marker</div>
+    <button id="editMarkerButton" role="menuitem"><span class="menu-action-icon">✏</span>Edit text</button>
+    <button id="changeMarkerColourButton" role="menuitem"><span class="menu-action-icon">🎨</span>Edit appearance</button>
+    <button id="moveMarkerButton" role="menuitem"><span class="menu-action-icon"><svg class="move-action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2v20 M2 12h20 M8 6l4-4 4 4 M8 18l4 4 4-4 M6 8l-4 4 4 4 M18 8l4 4-4 4"/></svg></span>Move marker</button>
+    <button id="deleteMarkerButton" class="danger" role="menuitem"><span class="menu-action-icon">❌</span>Delete marker</button>
+  </div>
+  <form id="markerColourMenu" class="marker-colour-menu" role="dialog" aria-label="Edit marker appearance" hidden>
+    <strong class="appearance-heading">Edit appearance</strong>
+    <span class="marker-colours-title" id="markerMenuColourLabel">Marker colour</span>
+    <div class="marker-colour-choices" id="markerMenuColours" role="group" aria-labelledby="markerMenuColourLabel"></div>
+    <span class="marker-shapes-title" id="markerMenuShapeLabel">Marker shape</span>
+    <div class="marker-shape-choices" id="markerMenuShapes" role="group" aria-labelledby="markerMenuShapeLabel"></div>
+    <div class="editor-actions"><button type="button" id="appearanceCancel">Cancel</button><button type="submit" class="primary" id="appearanceSave">Save changes</button></div>
+  </form>
+  <div id="markerTooltip" class="marker-tooltip" role="tooltip" hidden></div>
+  <form id="markerEditor" class="marker-editor" hidden>
+    <label id="markerEditorLabel" for="markerText">Marker text · Ctrl+Enter to save</label>
+    <textarea id="markerText" maxlength="4000" placeholder="Write a note for this location…"></textarea>
+    <label class="marker-colours-title" id="markerColourLabel">Marker colour</label>
+    <div class="marker-colour-choices" id="markerEditorColours" role="group" aria-labelledby="markerColourLabel"></div>
+    <label class="marker-shapes-title" id="markerShapeLabel">Marker shape</label>
+    <div class="marker-shape-choices" id="markerEditorShapes" role="group" aria-labelledby="markerShapeLabel"></div>
+    <div class="editor-actions"><button type="button" id="markerCancel">Cancel</button><button type="submit" class="primary" id="markerSave">Save marker</button></div>
+  </form>
+  <div id="moveBanner" class="move-banner" hidden>
+    <span class="move-info"><strong id="movingTitle">Moving screenshot</strong> · Click a destination on <strong id="moveTargetLayer">Outside</strong> · Space to switch layers · Esc to cancel</span>
+    <button id="cancelMoveButton" type="button">Cancel</button>
+  </div>
+  <div class="welcome" id="welcome" hidden>
+    <span class="big-moon">🌙</span>
+    <strong>Start building your map</strong>
+    <p>Take a screenshot of a game screen, then press <kbd>Ctrl</kbd> + <kbd>V</kbd>. Click the grid square where it belongs.</p>
+  </div>
+  <div class="bottom-bar">
+    <div class="help" id="help">Ctrl+V to paste · Click to place · Drag or WASD/arrow keys to pan · Scroll to zoom · Space to switch Inside/Outside · Ctrl+Space to show/hide markers · G to toggle grid · Right-click for options</div>
+    <div class="zoomtools">
+      <button class="glass-btn" id="zoomOut" title="Zoom out" aria-label="Zoom out">−</button>
+      <button class="glass-btn" id="zoomIn" title="Zoom in" aria-label="Zoom in">+</button>
+    </div>
+  </div>
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+  <div class="dialog-backdrop" id="cropDialog" hidden>
+    <form class="dialog" id="cropForm">
+      <h2>Trim screenshot borders</h2>
+      <p id="cropInfo">Crop the black borders on all four sides. The same crop applies to both map layers, including screenshots you've already placed.</p>
+      <div class="crop-preview"><canvas id="cropPreview" width="400" height="170" aria-label="Screenshot with the areas to be removed shaded red"></canvas></div>
+      <div class="fields">
+        <label>Left (pixels)<input type="number" id="cropLeft" min="0" step="1" required></label>
+        <label>Right (pixels)<input type="number" id="cropRight" min="0" step="1" required></label>
+        <label>Top (pixels)<input type="number" id="cropTop" min="0" step="1" required></label>
+        <label>Bottom (pixels)<input type="number" id="cropBottom" min="0" step="1" required></label>
+      </div>
+      <div class="crop-caption" id="cropSize"></div>
+      <div class="dialog-footer">
+        <button type="button" id="autoCropButton">Auto-detect</button>
+        <button type="button" id="cropCancel">Cancel</button>
+        <button type="submit" class="primary">Apply crop</button>
+      </div>
+    </form>
+  </div>
+  <div class="dialog-backdrop" id="legacyDialog" hidden>
+    <div class="dialog migration-dialog" role="dialog" aria-modal="true" aria-labelledby="legacyHeading">
+      <h2 id="legacyHeading">Recover your browser screenshots</h2>
+      <p id="legacySummary">Older screenshots were found in browser storage.</p>
+      <div class="details" id="legacyDetails"></div>
+      <label class="choice">When both copies have a different screenshot at the same position:
+        <select id="conflictPreference">
+          <option value="browser">Keep the browser screenshot at that position</option>
+          <option value="folder">Keep the folder screenshot at that position</option>
+        </select>
+      </label>
+      <label class="choice" id="geometryChoice">Which screenshot crop settings should the merged map use?
+        <select id="geometryPreference">
+          <option value="browser">Browser settings (including any recent manual adjustments)</option>
+          <option value="folder">Folder settings</option>
+        </select>
+      </label>
+      <p>Before merging, the webpage will create a dated <strong>recovery</strong> directory inside your map folder containing <strong>both original maps</strong>, with their screenshots. Nothing will be deleted from browser storage by this process.</p>
+      <div class="dialog-footer">
+        <button type="button" id="folderOnlyButton">Use folder only</button>
+        <button type="button" id="mergeLegacyButton" class="primary">Back up &amp; merge</button>
+      </div>
+    </div>
+  </div>
+  <input type="file" id="importInput" accept=".json,application/json" hidden>
+  <script>
+  // Map renderer v16: adjustable marker size, six shapes, folder-only storage, image grid overlay.
+  (() => {
+    'use strict';
+
+    const $ = id => document.getElementById(id);
+    const canvas = $('map'), ctx = canvas.getContext('2d', {alpha: false});
+    const DEFAULT_ASPECT = 16 / 9;
+    const MIN_CELL_HEIGHT = 9, MAX_CELL_HEIGHT = 3000;
+    const DB_NAME = 'MONOMOON_Map_Local_v1';
+    let db = null, ready = false;
+    let layer = 'outside';
+    let geometry = null; // {refWidth, refHeight, left, right, top, bottom} from first screenshot
+    let pending = null;  // {blob, bitmap, proposedGeometry}
+    let moving = null;   // {sourceId}; screenshot stays in its original cell until destination confirmed
+    let movingMarkerId = null;
+    let contextTileId = null, contextMarkerId = null, contextPoint = null;
+    let appearanceDraft = null; // {id,colour,shape}; saved only after Save changes
+    let editingMarker = null; // {id|null, layer, x, y, colour, shape}; unsaved until Save
+    let hoverMarkerId = null;
+    let mousePoint = null;
+    const markers = new Map();
+    const MARKER_COLOURS = Object.freeze([
+      {id:'red',name:'Red',hex:'#ff3448'},
+      {id:'orange',name:'Orange',hex:'#ff951e'},
+      {id:'yellow',name:'Yellow',hex:'#ffe13e'},
+      {id:'lime',name:'Lime',hex:'#b1ff28'},
+      {id:'green',name:'Green',hex:'#12ea80'},
+      {id:'cyan',name:'Cyan',hex:'#12deff'},
+      {id:'blue',name:'Blue',hex:'#448aff'},
+      {id:'purple',name:'Purple',hex:'#bd71ff'},
+      {id:'pink',name:'Pink',hex:'#ff32ac'}
+    ]);
+    const MARKER_SHAPES = Object.freeze([
+      {id:'pin',name:'Pin'},
+      {id:'diamond',name:'Diamond'},
+      {id:'star',name:'Star'},
+      {id:'square',name:'Square'},
+      {id:'triangle',name:'Triangle'},
+      {id:'hexagon',name:'Hexagon'}
+    ]);
+    // Every star vertex is calculated from the same centre. Its five inner
+    // vertices have identical radii, so the central white circle is truly centred.
+    const starPath = Array.from({length:10},(_,i)=>{
+      const a=-Math.PI/2+i*Math.PI/5,r=i%2?10.5:22;
+      return `${i?'L':'M'}${(Math.cos(a)*r).toFixed(3)} ${(Math.sin(a)*r).toFixed(3)}`;
+    }).join(' ')+' Z';
+    const MARKER_PATHS = Object.freeze({
+      pin:'M0 0 C-6 -9 -13 -14 -13 -21 A13 13 0 0 1 13 -21 C13 -14 6 -9 0 0 Z',
+      diamond:'M0 -22 L19 0 L0 22 L-19 0 Z',
+      star:starPath,
+      square:'M-13 -19 L13 -19 Q19 -19 19 -13 L19 13 Q19 19 13 19 L-13 19 Q-19 19 -19 13 L-19 -13 Q-19 -19 -13 -19 Z',
+      triangle:'M0 -22 L21 19 L-21 19 Z',
+      hexagon:'M0 -22 L19 -11 L19 11 L0 22 L-19 11 L-19 -11 Z'
+    });
+    const markerPaths = Object.fromEntries(Object.entries(MARKER_PATHS).map(([key,path])=>[key,new Path2D(path)]));
+    function markerColour(id) {return MARKER_COLOURS.find(c => c.id === id) || MARKER_COLOURS[0];}
+    function markerShape(id) {return MARKER_SHAPES.find(s => s.id === id) || MARKER_SHAPES[0];}
+    function normaliseMarker(m) {return {...m,colour:markerColour(m.colour).id,shape:markerShape(m.shape).id};}
+    function markerCentreOffset(shape) {return shape==='pin'?-21:shape==='triangle'?4:0;}
+    function markerDisplayScale(shape) {return (settings.markerSize / 100) * ((shape==='pin'||shape==='star') ? 1 : .9);}
+    function markerShapeSVG(shape,colour) {
+      const s=markerShape(shape).id,c=markerColour(colour).hex,cy=markerCentreOffset(s);
+      const d=MARKER_PATHS[s];
+      return `<svg viewBox="${s==='pin'?'-29 -42 58 58':'-29 -29 58 58'}" data-reduced-size="${s!=='pin'&&s!=='star'}" aria-hidden="true" focusable="false"><path d="${d}" fill="${c}" stroke="#090714" stroke-width="7" stroke-linejoin="round"/><path d="${d}" fill="${c}" stroke="#ffffff" stroke-width="3.2" stroke-linejoin="round"/><circle cx="0" cy="${cy}" r="5.3" fill="#ffffff" stroke="#2d092c" stroke-width="2.3"/></svg>`;
+    }
+    // Exactly one Tab stop for each palette. Arrow keys move within its grid
+    // and instantly show a live preview; Enter/Ctrl+Enter saves the form.
+    function fillMarkerChoices(container,items,selected,choose,{columns,kind,focusIndex=null,colour='red'}={}) {
+      const el=$(container);
+      el.replaceChildren();
+      const cls=kind==='shape'?'marker-shape-swatch':'marker-colour-swatch';
+      items.forEach((item,i)=>{
+        const btn=document.createElement('button');
+        btn.type='button';btn.className=cls;
+        btn.title=item.name;btn.setAttribute('aria-label',item.name);
+        btn.setAttribute('aria-pressed',String(item.id===selected));
+        btn.tabIndex=i===(focusIndex??0)?0:-1;
+        if(kind==='colour') btn.style.setProperty('--swatch',item.hex);
+        else btn.innerHTML=markerShapeSVG(item.id,colour);
+        btn.addEventListener('click',()=>choose(item.id,i));
+        btn.addEventListener('keydown',e=>{
+          // Enter is handled once at the parent form in capture phase.
+          // This prevents a native button click from also changing selection.
+          const row=Math.floor(i/columns),column=i%columns;
+          let next=i;
+          if(e.key==='ArrowLeft' && column>0) next=i-1;
+          else if(e.key==='ArrowRight' && column<columns-1 && i+1<items.length) next=i+1;
+          else if(e.key==='ArrowUp' && row>0) next=i-columns;
+          else if(e.key==='ArrowDown' && i+columns<items.length) next=i+columns;
+          else if(e.key==='Home') next=0;
+          else if(e.key==='End') next=items.length-1;
+          else return;
+          e.preventDefault();e.stopPropagation();
+          if(next!==i) choose(items[next].id,next);
+        });
+        el.append(btn);
+      });
+      // After a keyboard or mouse selection, keep focus on the new swatch.
+      if(focusIndex!==null && !el.closest('[hidden]')) el.querySelectorAll('.'+cls)[focusIndex]?.focus();
+    }
+    function fillMarkerColourChoices(container,selected,choose,options={}) {
+      fillMarkerChoices(container,MARKER_COLOURS,selected,choose,{columns:5,kind:'colour',...options});
+    }
+    function fillMarkerShapeChoices(container,selected,colour,choose,options={}) {
+      fillMarkerChoices(container,MARKER_SHAPES,selected,choose,{columns:3,kind:'shape',colour,...options});
+    }
+    const defaultSettings = Object.freeze({overlayOther:true, markersVisible:true, gridVisible:true, backgroundGridVisible:true, panSpeed:140, markerSize:100, hideHint:false, hideZoom:false, hideToggles:false, hideTitle:false});
+    let settings = {...defaultSettings};
+    let overlayOther = true;
+    let view = {cellHeight: 340, panX: 0, panY: 0};
+    let viewport = {w: innerWidth, h: innerHeight, dpr: 1};
+    // Held WASD/arrow-key panning, independent of key-repeat speed.
+    const heldPanKeys = new Set();
+    let panAnimation = 0, panFrameTime = 0;
+    const panDirections = Object.freeze({
+      w:[0,1], ArrowUp:[0,1], s:[0,-1], ArrowDown:[0,-1],
+      a:[1,0], ArrowLeft:[1,0], d:[-1,0], ArrowRight:[-1,0]
+    });
+    function stopKeyboardPan() {
+      heldPanKeys.clear();
+      if (panAnimation) cancelAnimationFrame(panAnimation);
+      panAnimation=0; panFrameTime=0;
+      persistViewSoon();
+    }
+    function animateKeyboardPan(time) {
+      panAnimation=0;
+      if (!heldPanKeys.size) {panFrameTime=0;persistViewSoon();return;}
+      const dt=Math.min(.05,Math.max(0,(time-(panFrameTime||time))/1000));
+      panFrameTime=time;
+      let dx=0,dy=0;
+      for (const key of heldPanKeys) {
+        const [x,y]=panDirections[key];dx+=x;dy+=y;
+      }
+      const length=Math.hypot(dx,dy);
+      if (length) {
+        const speed=680 * settings.panSpeed / 100; // v10 baseline 680 px/s; defaults to 140%
+        view.panX+=dx/length*speed*dt;
+        view.panY+=dy/length*speed*dt;
+        requestDraw();
+        panAnimation=requestAnimationFrame(animateKeyboardPan);
+      } else {
+        panFrameTime=0;
+        persistViewSoon();
+      }
+    }
+    let hovering = null, dragging = false, dragStart = null, pointerDown = null;
+    let toastTimeout = null, viewSaveTimeout = null, drawScheduled = false;
+    const tiles = new Map();
+    const pointers = new Map();
+    let pinch = null;
+    // Folder files are the ONLY source of truth. IndexedDB is accessed solely
+    // to read older screenshots and remember the directory handle (not images).
+    let folderHandle = null, folderReady = false;
+    let folderQueue = Promise.resolve(), folderBusy = false, mutationBusy = false;
+    let deferredIndexWrite = false;
+    let legacyTiles = [], legacyGeometry = null, legacyView = null;
+    let legacyImportDone = false, migrationPending = false;
+    let lastFolderError = '', folderMissing = false, folderConnecting = false;
+    const imageExtensions = ['png', 'jpg', 'webp', 'gif'];
+    let cropPreviewBitmap = null;
+    let ownsCropPreviewBitmap = false;
+
+    function keyFor(l, col, row) { return `${l}|${col}|${row}`; }
+    function aspect() {
+      const g = geometry || pending?.proposedGeometry;
+      return g ? Math.max(.05, (g.refWidth - g.left - g.right) / (g.refHeight - g.top - g.bottom)) : DEFAULT_ASPECT;
+    }
+    function dims() { return {w: view.cellHeight * aspect(), h: view.cellHeight}; }
+    function origin() { return {x: viewport.w / 2 + view.panX, y: viewport.h / 2 + view.panY}; }
+    function cellAt(x, y) {
+      const d = dims(), o = origin();
+      return {col: Math.floor((x - o.x) / d.w), row: Math.floor((y - o.y) / d.h)};
+    }
+    function worldAt(screenX, screenY) {
+      const d = dims(), o = origin();
+      return {x:(screenX-o.x)/d.w, y:(screenY-o.y)/d.h};
+    }
+    function markerScreen(m) {
+      const d = dims(), o = origin();
+      return {x:o.x+m.x*d.w, y:o.y+m.y*d.h};
+    }
+    function validMarker(m) {
+      return !!m && typeof m.id==='string' && /^[a-zA-Z0-9_-]{1,100}$/.test(m.id) &&
+        (m.layer==='inside'||m.layer==='outside') &&
+        Number.isFinite(m.x) && Number.isFinite(m.y) &&
+        Math.abs(m.x)<1e9 && Math.abs(m.y)<1e9 &&
+        typeof m.text==='string' && m.text.length<=4000 &&
+        (m.colour === undefined || MARKER_COLOURS.some(c=>c.id===m.colour)) &&
+        (m.shape === undefined || MARKER_SHAPES.some(s=>s.id===m.shape));
+    }
+    function makeMarkerId() {
+      return 'm_' + (typeof crypto!=='undefined' && typeof crypto.randomUUID==='function'
+        ? crypto.randomUUID().replace(/-/g,'')
+        : Date.now().toString(36)+Math.random().toString(36).slice(2));
+    }
+    function markerAt(screenX, screenY) {
+      if (!settings.markersVisible) return null;
+      // The marker shapes use the same point for drawing and hit-testing.
+      let best=null,distance=Infinity;
+      for(const marker of markers.values()) {
+        if(marker.layer!==layer) continue;
+        const p=markerScreen(marker),shape=markerShape(marker.shape).id;
+        const size=markerDisplayScale(shape);
+        const cy=p.y+markerCentreOffset(shape)*size;
+        const dx=screenX-p.x,dy=screenY-cy;
+        if(Math.abs(dx)>Math.max(13,25*size) || Math.abs(dy)>Math.max(14,26*size)) continue;
+        const d=dx*dx+dy*dy;
+        if(d<distance){best=marker;distance=d;}
+      }
+      return best;
+    }
+    function updateMarkerTooltip() {
+      const tooltip=$('markerTooltip');
+      if (!settings.markersVisible || editingMarker || appearanceDraft || movingMarkerId || moving || dragging ||
+          !$('markerMenu').hidden || !mousePoint) {tooltip.hidden=true;return;}
+      const marker=markerAt(mousePoint.x,mousePoint.y);
+      hoverMarkerId=marker?.id||null;
+      if (!marker || !marker.text.trim()) {tooltip.hidden=true;return;}
+      tooltip.textContent=marker.text;
+      tooltip.hidden=false;
+      const p=markerScreen(marker);
+      const w=tooltip.offsetWidth,h=tooltip.offsetHeight;
+      const scale=markerDisplayScale(markerShape(marker.shape).id);
+      tooltip.style.left=`${Math.max(8,Math.min(p.x+Math.max(22,28*scale),innerWidth-w-8))}px`;
+      tooltip.style.top=`${Math.max(8,Math.min(p.y-h-Math.max(30,35*scale),innerHeight-h-8))}px`;
+    }
+    function drawMarkerSymbol(x,y,colour='red',shape='pin',opacity=1) {
+      const s=markerShape(shape).id;
+      ctx.save();ctx.translate(x,y);ctx.scale(markerDisplayScale(s),markerDisplayScale(s));ctx.globalAlpha*=opacity;
+      ctx.lineJoin='round';
+      const path=markerPaths[s];
+      ctx.shadowColor='rgba(0,0,0,.98)';ctx.shadowBlur=9;ctx.shadowOffsetY=3;
+      ctx.fillStyle=markerColour(colour).hex;ctx.fill(path);
+      ctx.shadowBlur=0;ctx.shadowOffsetY=0;
+      ctx.strokeStyle='#090714';ctx.lineWidth=7;ctx.stroke(path);
+      ctx.strokeStyle='#ffffff';ctx.lineWidth=3.2;ctx.stroke(path);
+      ctx.beginPath();ctx.arc(0,markerCentreOffset(s),5.3,0,Math.PI*2);
+      ctx.fillStyle='#ffffff';ctx.fill();
+      ctx.strokeStyle='#2d092c';ctx.lineWidth=2.3;ctx.stroke();
+      ctx.restore();
+    }
+    function drawMarkers() {
+      if(settings.markersVisible) {
+        for(const m of markers.values()) {
+          if(m.layer!==layer) continue;
+          const p=markerScreen(m);
+          const margin=Math.max(48,50*markerDisplayScale(markerShape(m.shape).id));
+          if(p.x < -margin || p.y < -margin || p.x > viewport.w+margin || p.y > viewport.h+margin) continue;
+          const preview=editingMarker?.id===m.id?editingMarker:appearanceDraft?.id===m.id?appearanceDraft:null;
+          drawMarkerSymbol(p.x,p.y,preview?.colour||m.colour,preview?.shape||m.shape);
+        }
+      }
+      if(editingMarker && !editingMarker.id && editingMarker.layer===layer) {
+        const p=markerScreen(editingMarker);
+        drawMarkerSymbol(p.x,p.y,editingMarker.colour,editingMarker.shape,.85);
+      }
+      if(movingMarkerId && mousePoint) {
+        const m=markers.get(movingMarkerId);
+        drawMarkerSymbol(mousePoint.x,mousePoint.y,m?.colour||'red',m?.shape||'pin',.8);
+      }
+    }
+    function positionMarkerEditor() {
+      if (!editingMarker) return;
+      const el=$('markerEditor'),p=markerScreen(editingMarker);
+      const w=el.offsetWidth,h=el.offsetHeight;
+      el.style.left=`${Math.max(8,Math.min(p.x+23,innerWidth-w-8))}px`;
+      el.style.top=`${Math.max(8,Math.min(p.y-32,innerHeight-h-8))}px`;
+    }
+    function growMarkerTextArea() {
+      const field=$('markerText');
+      if ($('markerEditor').hidden) return;
+      // Grow as the note wraps or gains lines, but never undo a user's manual resize.
+      // scrollHeight includes padding; offsetHeight-clientHeight adds the borders.
+      if (field.scrollHeight > field.clientHeight + 1) {
+        const needed=Math.ceil(field.scrollHeight + field.offsetHeight - field.clientHeight);
+        if (needed > field.offsetHeight) field.style.height=`${needed}px`;
+      }
+      // The editor itself scrolls when the note exceeds the available viewport.
+      // That keeps the text box free of internal scrollbars and preserves its grip.
+      positionMarkerEditor();
+    }
+    function closeMarkerEditor() {
+      editingMarker=null;$('markerEditor').hidden=true;requestDraw();updateMarkerTooltip();
+    }
+    function chooseEditorColour(colour, focusIndex=null) {
+      if(!editingMarker)return;
+      editingMarker.colour=colour;
+      showEditorColours(focusIndex);
+      showEditorShapes(); // The shape previews use the newly selected colour.
+      requestDraw();
+    }
+    function chooseEditorShape(shape, focusIndex=null) {
+      if(!editingMarker)return;
+      editingMarker.shape=shape;
+      showEditorShapes(focusIndex);requestDraw();
+    }
+    function showEditorColours(focusIndex=null) {
+      fillMarkerColourChoices('markerEditorColours',editingMarker.colour,chooseEditorColour,{focusIndex});
+    }
+    function showEditorShapes(focusIndex=null) {
+      fillMarkerShapeChoices('markerEditorShapes',editingMarker.shape,editingMarker.colour,chooseEditorShape,{focusIndex});
+    }
+    function openMarkerEditor(marker=null, point=null) {
+      if (!requireFolder() || mutationBusy || folderBusy) return;
+      closeMenu();closeTileMenu();closeMarkerMenu();closeMarkerColourMenu();
+      if (moving || movingMarkerId) cancelMove();
+      if (pending) cancelPending();
+      const pos=marker || point;
+      if (!pos) return;
+      editingMarker={id:marker?.id||null,layer:marker?.layer||layer,x:pos.x,y:pos.y,
+        colour:markerColour(marker?.colour).id,shape:markerShape(marker?.shape).id};
+      $('markerText').style.height=''; // Reset any size from a previously opened note.
+      $('markerText').value=marker?.text||'';
+      showEditorColours();showEditorShapes();
+      $('markerEditorLabel').textContent=marker?'Edit marker text · Ctrl+Enter to save':'New marker · Ctrl+Enter to save';
+      $('markerSave').textContent=marker?'Save changes':'Save marker';
+      $('markerEditor').hidden=false;
+      $('markerTooltip').hidden=true;
+      growMarkerTextArea();requestDraw();
+      $('markerText').focus();
+    }
+    async function saveMarkerEditor(e) {
+      e.preventDefault();
+      if (!editingMarker || !requireFolder() || mutationBusy || folderBusy) return;
+      const draft=editingMarker, id=draft.id||makeMarkerId();
+      const source=draft.id?markers.get(draft.id):null;
+      if (draft.id&&!source) {closeMarkerEditor();notify('The marker is no longer available.',true);return;}
+      const updated={id,layer:draft.layer,x:draft.x,y:draft.y,text:$('markerText').value.trim(),colour:markerColour(draft.colour).id,shape:markerShape(draft.shape).id};
+      const next=new Map(markers);next.set(id,updated);
+      mutationBusy=true;$('markerSave').disabled=true;
+      try {
+        await commitFolderChange(tiles,{markers:next});
+        markers.set(id,updated);closeMarkerEditor();updateWelcome();requestDraw();
+        notify(source?'Marker changes saved to map folder.':'Marker added and saved to map folder.');
+      } catch(err) {notify(`Marker not saved: ${err.message}`,true,true);}
+      finally {mutationBusy=false;$('markerSave').disabled=false;flushDeferredIndexWrite();}
+    }
+    function beginMarkerMove(id) {
+      if (!requireFolder() || mutationBusy || folderBusy) return;
+      const source=markers.get(id);if(!source)return;
+      closeTileMenu();closeMarkerMenu();closeMarkerColourMenu();closeMarkerEditor();cancelMove();
+      if(pending) cancelPending();
+      movingMarkerId=id;
+      const p=markerScreen(source);mousePoint={x:p.x,y:p.y};
+      updateMoveUI();
+      notify('Click the new marker position. Press Space to switch maps or Esc to cancel.');
+    }
+    async function moveMarkerTo(x,y) {
+      if (!movingMarkerId || !requireFolder() || mutationBusy || folderBusy) return;
+      const src=markers.get(movingMarkerId);
+      if (!src) {cancelMove();return;}
+      const pos={x:+x.toFixed(7),y:+y.toFixed(7)};
+      if (src.layer===layer && src.x===pos.x && src.y===pos.y) {cancelMove(true);return;}
+      const changed={...src,...pos,layer};
+      const next=new Map(markers);next.set(src.id,changed);
+      mutationBusy=true;
+      try {
+        await commitFolderChange(tiles,{markers:next});
+        markers.set(src.id,changed);movingMarkerId=null;updateMoveUI();updateWelcome();
+        notify(`Marker moved and saved on ${layerName(layer)}.`);
+      } catch(err) {notify(`Marker not moved: ${err.message}. Previous position remains.`,true,true);}
+      finally{mutationBusy=false;flushDeferredIndexWrite();}
+    }
+    async function deleteMarker(id) {
+      if (!requireFolder() || mutationBusy || folderBusy)return;
+      const m=markers.get(id);if(!m)return;
+      if(!confirm(`Delete this marker on ${layerName(m.layer)}?
+
+${m.text.slice(0,180)||'(No text)'}`))return;
+      const next=new Map(markers);next.delete(id);
+      mutationBusy=true;
+      try {await commitFolderChange(tiles,{markers:next});markers.delete(id);updateMarkerTooltip();updateWelcome();requestDraw();notify('Marker deleted from map folder.');}
+      catch(err){notify(`Marker deletion failed: ${err.message}`,true,true);}
+      finally{mutationBusy=false;flushDeferredIndexWrite();}
+    }
+    function layerName(l) { return l === 'inside' ? 'Inside' : 'Outside'; }
+    function updateLayerButton() {
+      $('layerName').textContent = layer === 'outside' ? '✨ Outside' : '🏠 Inside';
+      $('layerButton').classList.toggle('inside', layer === 'inside');
+      $('moveTargetLayer').textContent = layerName(layer);
+      updateMarkerTooltip();
+      updateWelcome();
+      requestDraw();
+    }
+    // Keep the 100% marker-size setting at the slider's physical midpoint,
+    // while permitting a smaller minimum (10%) without changing the 150% maximum.
+    // Quantise to 5% increments, as in previous versions.
+    function markerSizeFromSlider(position) {
+      const p = Math.max(0, Math.min(200, Number(position)));
+      const size = p <= 100 ? 10 + p * 0.9 : 100 + (p - 100) * 0.5;
+      return Math.max(10, Math.min(150, Math.round(size / 5) * 5));
+    }
+    function sliderFromMarkerSize(size) {
+      const v = Math.max(10, Math.min(150, Number(size)));
+      return v <= 100 ? (v - 10) / 0.9 : 100 + (v - 100) / 0.5;
+    }
+    function cleanSettings(value) {
+      const next = {...defaultSettings};
+      if (value && typeof value === 'object') {
+        for (const key of Object.keys(next)) {
+          if (key === 'panSpeed') {
+            if (Number.isFinite(value.panSpeed)) next.panSpeed = Math.max(50, Math.min(250, Math.round(value.panSpeed / 10) * 10));
+          } else if (key === 'markerSize') {
+            if (Number.isFinite(value.markerSize)) next.markerSize = Math.max(10, Math.min(150, Math.round(value.markerSize / 5) * 5));
+          } else if (typeof value[key] === 'boolean') next[key] = value[key];
+        }
+      }
+      return next;
+    }
+    function updateDisplaySettings() {
+      overlayOther = settings.overlayOther;
+      $('guideCheckbox').checked = settings.overlayOther;
+      $('backgroundGridCheckbox').checked = settings.backgroundGridVisible;
+      $('panSpeedSlider').value = String(settings.panSpeed);
+      $('panSpeedValue').textContent = `${settings.panSpeed}%`;
+      $('markerSizeSlider').value = String(sliderFromMarkerSize(settings.markerSize));
+      $('markerSizeSlider').setAttribute('aria-valuenow', String(settings.markerSize));
+      $('markerSizeSlider').setAttribute('aria-valuetext', `${settings.markerSize}%`);
+      $('markerSizeValue').textContent = `${settings.markerSize}%`;
+      $('hideHintCheckbox').checked = settings.hideHint;
+      $('hideZoomCheckbox').checked = settings.hideZoom;
+      $('hideTogglesCheckbox').checked = settings.hideToggles;
+      $('hideTitleCheckbox').checked = settings.hideTitle;
+      $('help').hidden = settings.hideHint;
+      document.querySelector('.zoomtools').hidden = settings.hideZoom;
+      $('layerButton').hidden = settings.hideToggles;
+      $('markersButton').hidden = settings.hideToggles;
+      $('gridButton').hidden = settings.hideToggles;
+      $('gridButtonLabel').textContent = settings.gridVisible ? 'Grid on' : 'Grid off';
+      $('gridButton').classList.toggle('off', !settings.gridVisible);
+      $('gridButton').setAttribute('aria-pressed', String(settings.gridVisible));
+      $('gridButton').title = settings.backgroundGridVisible
+        ? (settings.gridVisible ? 'Hide grid over screenshots (G)' : 'Show grid over screenshots (G)')
+        : (settings.gridVisible ? 'Hide all grid lines (G)' : 'Show all grid lines (G)');
+      document.querySelector('.brand').hidden = settings.hideTitle;
+      $('markersButtonLabel').textContent = settings.markersVisible ? 'Markers on' : 'Markers off';
+      $('markersButton').classList.toggle('off', !settings.markersVisible);
+      $('markersButton').setAttribute('aria-pressed', String(settings.markersVisible));
+      $('markersButton').title = settings.markersVisible ? 'Hide markers (Ctrl+Space)' : 'Show markers (Ctrl+Space)';
+      updateMarkerTooltip();
+      requestDraw();
+    }
+    function setSetting(name, value) {
+      settings[name] = value;
+      updateDisplaySettings();
+      if (folderReady && !migrationPending) {
+        // Don't write a stale tile index while a screenshot/marker mutation
+        // is being committed. Flush immediately afterwards instead.
+        if (mutationBusy) deferredIndexWrite=true;
+        else queueFolderWrite(() => writeFolderIndex()).catch(() => {});
+      } else notify('Display choice is temporary until the map folder is connected.', true);
+    }
+    function toggleMarkers() { setSetting('markersVisible', !settings.markersVisible); }
+    function toggleGrid() { setSetting('gridVisible', !settings.gridVisible); }
+    function count(l) { let n = 0; for (const t of tiles.values()) if (t.layer === l) n++; return n; }
+    function updateSaveStatus() {
+      const n = tiles.size;
+      $('savedText').textContent = folderReady
+        ? `${n} screenshot${n === 1 ? '' : 's'} saved in the local map folder.`
+        : 'NOT SAVING — connect the map folder to enable editing.';
+      $('folderText').textContent = folderReady
+        ? `Connected • map.json and ${n} screenshot file${n === 1 ? '' : 's'}. No screenshots are saved in the browser.`
+        : folderHandle ? `Folder needs access. ${lastFolderError || 'Changes are blocked until you reconnect.'}`
+        : 'Choose a local folder. Screenshots will only be saved there.';
+      $('folderButton').textContent = folderReady ? '📁  Change map folder…' : folderHandle ? '📁  Reconnect (select folder)…' : '📁  Open local map folder…';
+      $('selectNewFolderButton').hidden = !folderMissing || folderReady;
+      $('loadFolderButton').hidden = !folderReady;
+      $('legacyImportButton').hidden = !folderReady || legacyTiles.length === 0 || migrationPending;
+      $('clearBrowserButton').hidden = !folderReady || !legacyImportDone || legacyTiles.length === 0 || migrationPending;
+      $('connectionBanner').hidden = folderReady;
+      $('connectionText').textContent = lastFolderError ? `Map folder disconnected: ${lastFolderError}` : 'Map folder disconnected — screenshot changes are blocked until you reconnect.';
+      $('reconnectButton').textContent = folderHandle ? 'Reconnect folder' : 'Choose folder';
+      $('reconnectButton').title = 'Choose the current map folder in the folder picker (no access request for old folder handles).';
+      $('selectNewFolderBanner').hidden = !folderMissing || folderReady;
+      $('reconnectButton').disabled = folderConnecting;
+      $('selectNewFolderBanner').disabled = folderConnecting;
+      $('folderButton').disabled = folderConnecting;
+      $('selectNewFolderButton').disabled = folderConnecting;
+      $('layerButton').title = folderReady ? 'Space to switch Inside/Outside' : 'Space to switch Inside/Outside (changes will not be saved until connected)';
+    }
+    function requireFolder() {
+      if (folderReady && !migrationPending) return true;
+      notify(migrationPending ? 'Resolve browser screenshot recovery first.' : 'Connect your local map folder before making changes. No screenshot was saved or changed.', true, true);
+      return false;
+    }
+    function isMissingFolderError(err) {
+      return err?.name === 'NotFoundError' ||
+        /(?:not found|could not be found|no such file|does not exist|missing directory|missing file)/i.test(err?.message || '');
+    }
+    function lostFolder(err) {
+      console.error('Map folder saving failed', err);
+      folderReady = false;
+      migrationPending=false; $('legacyDialog').hidden=true;
+      lastFolderError = err?.message || 'Folder permission or disk write failed.';
+      folderMissing = isMissingFolderError(err);
+      updateSaveStatus();
+      notify('Map folder disconnected. No screenshot changes will be accepted until reconnecting.', true, true);
+    }
+    function updateWelcome() { $('welcome').hidden = !ready || count(layer) > 0 || [...markers.values()].some(m=>m.layer===layer) || pending !== null || moving !== null || movingMarkerId !== null; }
+    function notify(message, error = false, permanent = false) {
+      const e = $('toast');
+      e.textContent = message;
+      e.classList.toggle('error', error);
+      e.hidden = false;
+      clearTimeout(toastTimeout);
+      if (!permanent) toastTimeout = setTimeout(() => e.hidden = true, error ? 7000 : 3500);
+    }
+    function closeMenu() { $('menu').hidden = true; $('moreButton').setAttribute('aria-expanded', 'false'); }
+    function closeTileMenu() { $('tileMenu').hidden = true; contextTileId = null; contextPoint = null; }
+    function closeMarkerMenu() { $('markerMenu').hidden = true; contextMarkerId = null; }
+    function closeMarkerColourMenu() {
+      $('markerColourMenu').hidden=true;
+      appearanceDraft=null;requestDraw();updateMarkerTooltip();
+    }
+    function chooseAppearanceColour(colour, focusIndex=null) {
+      if(!appearanceDraft)return;
+      appearanceDraft.colour=colour;
+      showAppearanceColours(focusIndex);
+      showAppearanceShapes();
+      requestDraw();
+    }
+    function chooseAppearanceShape(shape, focusIndex=null) {
+      if(!appearanceDraft)return;
+      appearanceDraft.shape=shape;
+      showAppearanceShapes(focusIndex);
+      requestDraw();
+    }
+    function showAppearanceColours(focusIndex=null) {
+      fillMarkerColourChoices('markerMenuColours',appearanceDraft.colour,chooseAppearanceColour,{focusIndex});
+    }
+    function showAppearanceShapes(focusIndex=null) {
+      fillMarkerShapeChoices('markerMenuShapes',appearanceDraft.shape,appearanceDraft.colour,chooseAppearanceShape,{focusIndex});
+    }
+    function openMarkerColourMenu(marker,x,y) {
+      if(!marker || !requireFolder() || mutationBusy || folderBusy)return;
+      closeMarkerMenu();closeTileMenu();closeMenu();closeMarkerEditor();
+      appearanceDraft={id:marker.id,colour:markerColour(marker.colour).id,shape:markerShape(marker.shape).id};
+      showAppearanceColours();showAppearanceShapes();
+      placePopup($('markerColourMenu'),x,y);
+      $('markerTooltip').hidden=true;
+      // Focus currently selected colour immediately (no extra Tab needed).
+      const focused=MARKER_COLOURS.findIndex(c=>c.id===appearanceDraft.colour);
+      showAppearanceColours(focused);
+      requestDraw();
+    }
+    async function saveMarkerAppearance(e) {
+      e.preventDefault();
+      if(!appearanceDraft || !requireFolder() || mutationBusy || folderBusy)return;
+      const draft={...appearanceDraft},m=markers.get(draft.id);
+      if(!m){closeMarkerColourMenu();notify('The marker is no longer available.',true);return;}
+      if(m.colour===draft.colour && markerShape(m.shape).id===draft.shape){closeMarkerColourMenu();return;}
+      const updated={...m,colour:draft.colour,shape:draft.shape};
+      const next=new Map(markers);next.set(m.id,updated);
+      mutationBusy=true;$('appearanceSave').disabled=true;
+      try {
+        await commitFolderChange(tiles,{markers:next});
+        markers.set(m.id,updated);closeMarkerColourMenu();requestDraw();
+        notify('Marker colour and shape saved to map folder.');
+      }catch(err){notify(`Marker appearance not saved: ${err.message}`,true,true);}
+      finally{mutationBusy=false;$('appearanceSave').disabled=false;flushDeferredIndexWrite();}
+    }
+    function placePopup(menu, x, y) {
+      menu.hidden = false;
+      const bounds = menu.getBoundingClientRect();
+      menu.style.left = `${Math.max(8, Math.min(x, innerWidth - bounds.width - 8))}px`;
+      menu.style.top = `${Math.max(8, Math.min(y, innerHeight - bounds.height - 8))}px`;
+    }
+    function openTileMenu(x, y, t, point) {
+      closeMenu(); closeMarkerMenu();closeMarkerColourMenu();
+      contextTileId = t?.id || null;
+      contextPoint = point;
+      const cell = cellAt(x,y);
+      $('tileMenuLocation').textContent = `${layerName(layer)} · (${cell.col}, ${cell.row})`;
+      $('moveTileButton').hidden = !t;
+      $('deleteTileButton').hidden = !t;
+      placePopup($('tileMenu'), x, y);
+    }
+    function openMarkerMenu(x, y, marker) {
+      closeMenu(); closeTileMenu();closeMarkerColourMenu();
+      contextMarkerId = marker.id;
+      $('markerMenuLocation').textContent = `${layerName(marker.layer)} · Marker`;
+      placePopup($('markerMenu'), x, y);
+      $('markerTooltip').hidden = true;
+    }
+    function updateMoveUI() {
+      $('moveBanner').hidden = !moving && !movingMarkerId;
+      $('movingTitle').textContent = movingMarkerId ? 'Moving marker' : 'Moving screenshot';
+      $('moveTargetLayer').textContent = layerName(layer);
+      canvas.classList.toggle('placing', !!pending || !!moving);
+      updateWelcome();
+      requestDraw();
+    }
+    function cancelMove(showMessage = false) {
+      if (!moving && !movingMarkerId) return;
+      moving = null;
+      movingMarkerId = null;
+      updateMoveUI();
+      if (showMessage) notify('Move cancelled.');
+    }
+    function beginMove(id) {
+      if (!requireFolder() || mutationBusy) return;
+      closeTileMenu(); closeMarkerMenu(); closeMarkerEditor(); cancelMove();
+      const source = tiles.get(id);
+      if (!source) return;
+      if (pending) cancelPending();
+      moving = {sourceId: id};
+      hovering = {col: source.col, row: source.row};
+      updateMoveUI();
+    }
+    function toggleLayer() {
+      layer = layer === 'outside' ? 'inside' : 'outside';
+      closeMarkerColourMenu();
+      hoverMarkerId=null;
+      updateLayerButton();
+      persistViewSoon();
+      closeMenu(); closeTileMenu(); closeMarkerMenu();
+    }
+
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        if (!('indexedDB' in window)) return reject(new Error('IndexedDB is unavailable'));
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = () => {
+          const d = req.result;
+          if (!d.objectStoreNames.contains('tiles')) d.createObjectStore('tiles', {keyPath: 'id'});
+          if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta', {keyPath: 'key'});
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+    function txDone(tx) { return new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onabort = () => reject(tx.error || new Error('Database transaction aborted')); tx.onerror = () => reject(tx.error || new Error('Database transaction failed')); }); }
+    function readAll(store) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(store, 'readonly');
+        const r = tx.objectStore(store).getAll();
+        r.onsuccess = () => resolve(r.result);
+        r.onerror = () => reject(r.error);
+      });
+    }
+    function readMeta(k) {
+      return new Promise((resolve, reject) => {
+        const r = db.transaction('meta', 'readonly').objectStore('meta').get(k);
+        r.onsuccess = () => resolve(r.result?.value ?? null);
+        r.onerror = () => reject(r.error);
+      });
+    }
+    function writeMeta(k, value) {
+      if (!db) return Promise.resolve();
+      const tx = db.transaction('meta', 'readwrite');
+      tx.objectStore('meta').put({key: k, value});
+      return txDone(tx);
+    }
+    function flushDeferredIndexWrite() {
+      if (deferredIndexWrite && folderReady && !mutationBusy && !migrationPending) {
+        deferredIndexWrite=false;
+        queueFolderWrite(() => writeFolderIndex()).catch(() => {});
+      }
+    }
+    function persistViewSoon() {
+      clearTimeout(viewSaveTimeout);
+      // Camera and selected layer live in map.json, never in browser storage.
+      if (!folderReady || migrationPending) return;
+      if (mutationBusy) {deferredIndexWrite=true;return;}
+      viewSaveTimeout = setTimeout(() => {
+        if (mutationBusy) {deferredIndexWrite=true;return;}
+        queueFolderWrite(() => writeFolderIndex()).catch(() => {});
+      }, 250);
+    }
+
+    // FOLDER-FIRST STORAGE. Every operation is written to disk BEFORE it is
+    // considered saved. If access lapses, editing stops. Images never enter IDB.
+    function tileExtension(blob) {
+      return blob.type === 'image/jpeg' ? 'jpg' : blob.type === 'image/webp' ? 'webp' : blob.type === 'image/gif' ? 'gif' : 'png';
+    }
+    function tileFilename(t) { return `${t.col}_${t.row}.${tileExtension(t.blob)}`; }
+    function tilePath(t) { return `${t.layer}/${tileFilename(t)}`; }
+    function folderIndex(tileMap = tiles, g = geometry, v = view, l = layer, markerMap = markers, options = settings) {
+      return {format: 'MONOMOON-Folder', version: 1,
+        updatedAt: new Date().toISOString(), legacyImportDone: true,
+        geometry: g, view: {...v}, activeLayer: l,
+        settings: {...options},
+        markers: [...markerMap.values()].map(m => ({id:m.id,layer:m.layer,x:m.x,y:m.y,text:m.text,colour:markerColour(m.colour).id,shape:markerShape(m.shape).id})),
+        tiles: [...tileMap.values()].map(t => ({layer:t.layer, col:t.col, row:t.row, file:tilePath(t)}))};
+    }
+    async function getFolderIndex(handle = folderHandle) {
+      try {
+        const f = await (await handle.getFileHandle('map.json')).getFile();
+        const idx = JSON.parse(await f.text());
+        if (idx.format !== 'MONOMOON-Folder' || idx.version !== 1 || !Array.isArray(idx.tiles)) throw new Error('Unsupported map.json format');
+        return idx;
+      } catch (err) { if (err.name === 'NotFoundError') return null; throw err; }
+    }
+    async function writeJSON(root, name, data) {
+      const handle = await root.getFileHandle(name, {create:true});
+      const writer = await handle.createWritable();
+      try { await writer.write(JSON.stringify(data, null, 2) + '\n'); }
+      finally { await writer.close(); }
+    }
+    async function writeFolderIndex(index = folderIndex()) {
+      if (!folderHandle) throw new Error('No folder selected');
+      await writeJSON(folderHandle, 'map.json', index);
+    }
+    async function putFileInDirectory(root, t) {
+      const dir = await root.getDirectoryHandle(t.layer, {create:true});
+      const fh = await dir.getFileHandle(tileFilename(t), {create:true});
+      const writer = await fh.createWritable();
+      try { await writer.write(t.blob); }
+      finally { await writer.close(); }
+    }
+    async function writeTileFile(t) { await putFileInDirectory(folderHandle, t); }
+    async function removeTileFiles(t, exceptName = null) {
+      const dir = await folderHandle.getDirectoryHandle(t.layer, {create:true});
+      for (const ext of imageExtensions) {
+        const name = `${t.col}_${t.row}.${ext}`;
+        if (name === exceptName) continue;
+        try { await dir.removeEntry(name); }
+        catch (err) { if (err.name !== 'NotFoundError') throw err; }
+      }
+    }
+    async function archivedTile(t) {
+      // Destructive edits leave an extra, clearly visible recovery image.
+      const history = await folderHandle.getDirectoryHandle('recovery-history', {create:true});
+      const token = new Date().toISOString().replace(/[:.]/g,'-') + '-' + Math.random().toString(36).slice(2,8);
+      const name = `${token}_${t.layer}_${t.col}_${t.row}.${tileExtension(t.blob)}`;
+      const f = await history.getFileHandle(name,{create:true});
+      const w = await f.createWritable();
+      try { await w.write(t.blob); } finally { await w.close(); }
+    }
+    function queueFolderWrite(job) {
+      if (!folderReady || !folderHandle) return Promise.reject(new Error('Map folder is not connected'));
+      const op = folderQueue.then(async () => {
+        if (!folderReady) throw new Error('Map folder disconnected');
+        folderBusy = true;
+        try { return await job(); }
+        catch (err) { lostFolder(err); throw err; }
+        finally { folderBusy = false; }
+      });
+      folderQueue = op.catch(() => {}); // Keep queue usable for an explicit reconnect.
+      return op;
+    }
+    async function commitFolderChange(next, opts={}) {
+      const writes = opts.writes || [], removes = opts.removes || [], archives = opts.archives || [];
+      const nextGeometry = opts.geometry === undefined ? geometry : opts.geometry;
+      const nextView = opts.view || view;
+      const nextLayer = opts.layer || layer;
+      const nextMarkers = opts.markers || markers;
+      const nextSettings = opts.settings || settings;
+      const newIndex = folderIndex(next, nextGeometry, nextView, nextLayer, nextMarkers, nextSettings);
+      await queueFolderWrite(async () => {
+        for (const t of archives) await archivedTile(t);
+        for (const t of writes) await writeTileFile(t);
+        // map.json is committed last; nothing changes on screen before this.
+        await writeFolderIndex(newIndex);
+        // Old files are removed only AFTER the new index has been written.
+        for (const t of removes) {
+          try { await removeTileFiles(t); }
+          catch (err) { console.warn('Unindexed old image retained for recovery', err); }
+        }
+        // Replace changed .jpg/.png extensions at the same coordinate only
+        // after index commit, avoiding deletion of the newly written image.
+        for (const t of writes) {
+          try { await removeTileFiles(t, tileFilename(t)); }
+          catch (err) { console.warn('Old file extension retained',err); }
+        }
+      });
+    }
+    function validFolderEntry(t) {
+      return t && ['inside','outside'].includes(t.layer) &&
+        Number.isSafeInteger(t.col) && Number.isSafeInteger(t.row) &&
+        typeof t.file === 'string' &&
+        /^(inside|outside)\/-?\d+_-?\d+\.(png|jpg|webp|gif)$/.test(t.file) &&
+        t.file.startsWith(`${t.layer}/${t.col}_${t.row}.`);
+    }
+    async function readFolderTiles(index, handle=folderHandle) {
+      const map = new Map();
+      if (!index) return map;
+      for (const entry of index.tiles) {
+        if (!validFolderEntry(entry)) throw new Error('Invalid tile entry in map.json');
+        const dir = await handle.getDirectoryHandle(entry.layer);
+        const blob = await (await dir.getFileHandle(entry.file.split('/')[1])).getFile();
+        const t = {id:keyFor(entry.layer, entry.col, entry.row), layer:entry.layer,
+          col:entry.col, row:entry.row, blob, bitmap:null, loading:null, lastUsed:0};
+        if (map.has(t.id)) throw new Error('Duplicate grid coordinate in map.json');
+        map.set(t.id,t);
+      }
+      return map;
+    }
+    function loadState(map, index) {
+      cancelPending(); cancelMove(); closeMarkerEditor(); closeTileMenu(); closeMarkerMenu(); closeMarkerColourMenu();
+      for (const t of tiles.values()) clearTileDisplay(t);
+      decodeQueue.length = 0;
+      tiles.clear();
+      for (const [id,t] of map) tiles.set(id,{...t,bitmap:null,loading:null,smallBitmap:null,mediumBitmap:null,loadingSmall:null,loadingMedium:null,failedLevels:null,lastUsed:0});
+      geometry = validGeometry(index?.geometry) ? normalizeGeometry(index.geometry) : null;
+      const v = index?.view;
+      view = v && Number.isFinite(v.cellHeight) && Number.isFinite(v.panX) && Number.isFinite(v.panY)
+        ? {cellHeight:Math.max(MIN_CELL_HEIGHT,Math.min(MAX_CELL_HEIGHT,v.cellHeight)),panX:v.panX,panY:v.panY}
+        : {cellHeight:340,panX:0,panY:0};
+      layer = index?.activeLayer === 'inside' ? 'inside' : 'outside';
+      markers.clear();
+      for (const candidate of (Array.isArray(index?.markers) ? index.markers : [])) {
+        if (!validMarker(candidate) || markers.has(candidate.id)) continue;
+        markers.set(candidate.id, normaliseMarker(candidate));
+      }
+      settings = cleanSettings(index?.settings);
+      updateDisplaySettings();
+      updateLayerButton(); updateSaveStatus(); requestDraw();
+    }
+    async function identicalImages(a,b) {
+      if (a.size !== b.size) return false;
+      // Exact byte comparison avoids treating different captures as duplicates.
+      const [ab,bb] = await Promise.all([a.arrayBuffer(),b.arrayBuffer()]);
+      const x=new Uint8Array(ab),y=new Uint8Array(bb);
+      for (let i=0;i<x.length;i++) if (x[i]!==y[i]) return false;
+      return true;
+    }
+    async function migrationStats() {
+      let onlyBrowser=0, onlyFolder=0, duplicates=0, conflicts=0;
+      for (const t of legacyTiles) {
+        const old=tiles.get(t.id);
+        if (!old) onlyBrowser++;
+        else if (await identicalImages(t.blob, old.blob)) duplicates++;
+        else conflicts++;
+      }
+      for (const t of tiles.values()) if (!legacyTiles.some(x=>x.id===t.id)) onlyFolder++;
+      return {onlyBrowser, onlyFolder, duplicates, conflicts};
+    }
+    async function showLegacyRecovery() {
+      if (!folderReady || !legacyTiles.length) return;
+      migrationPending = true;
+      $('legacyDialog').hidden = false;
+      $('mergeLegacyButton').disabled = false;
+      $('folderOnlyButton').disabled = false;
+      $('legacySummary').textContent = `Found ${legacyTiles.length} screenshot(s) in the old browser map and ${tiles.size} screenshot(s) in the folder.`;
+      $('legacyDetails').textContent = 'Comparing screenshots…';
+      try {
+        const s=await migrationStats();
+        $('legacyDetails').textContent = `${s.onlyBrowser} position(s) only in the browser (will be added) · ${s.onlyFolder} only in the folder (kept) · ${s.duplicates} identical · ${s.conflicts} different screenshot(s) at the same position. Both original maps will be backed up before merging.`;
+        $('conflictPreference').parentElement.style.display = s.conflicts ? 'block' : 'none';
+        $('geometryChoice').style.display = legacyGeometry && geometry && JSON.stringify(legacyGeometry)!==JSON.stringify(geometry) ? 'block' : 'none';
+      } catch(err) { $('legacyDetails').textContent='Could not compare all images. Both originals will still be backed up before merging.'; }
+    }
+    function hideLegacyRecovery() { migrationPending=false; $('legacyDialog').hidden=true; updateSaveStatus(); }
+    async function snapshotBeforeMigration() {
+      // Full recoverable copies of BOTH originals go in an independent directory.
+      // This runs to completion before any changes to the live map folder.
+      const stamp=new Date().toISOString().replace(/[:.]/g,'-') + '-' + Math.random().toString(36).slice(2,7);
+      const root=await folderHandle.getDirectoryHandle(`recovery-before-merge-${stamp}`,{create:true});
+      const folder=await root.getDirectoryHandle('folder',{create:true});
+      const browser=await root.getDirectoryHandle('browser',{create:true});
+      const currentFolderTiles=new Map(tiles);
+      await writeJSON(folder,'map.json',folderIndex(currentFolderTiles));
+      for (const t of tiles.values()) await putFileInDirectory(folder,t);
+      const browserMap=new Map(legacyTiles.map(t=>[t.id,t]));
+      const v=legacyView?.view || view;
+      await writeJSON(browser,'map.json',folderIndex(browserMap, legacyGeometry || geometry, v, legacyView?.layer || layer, new Map(), {...defaultSettings}));
+      for (const t of legacyTiles) await putFileInDirectory(browser,t);
+      return root.name;
+    }
+    async function mergeLegacy() {
+      if (!folderReady || !migrationPending) return;
+      const btn=$('mergeLegacyButton'), other=$('folderOnlyButton');
+      btn.disabled=true;other.disabled=true;
+      notify('Backing up both maps into the local folder before merging…',false,true);
+      try {
+        const backupName=await snapshotBeforeMigration();
+        const preference=$('conflictPreference').value;
+        const next=new Map(tiles), writes=[], archives=[];
+        for (const old of legacyTiles) {
+          const existing=next.get(old.id);
+          if (!existing) {next.set(old.id,old);writes.push(old);continue;}
+          if (await identicalImages(existing.blob,old.blob)) continue;
+          if (preference==='browser') { archives.push(existing);next.set(old.id,old);writes.push(old); }
+        }
+        const mergedGeometry=$('geometryPreference').value==='folder' ? (geometry || legacyGeometry) : (legacyGeometry || geometry);
+        const mergedView=legacyView?.view || view;
+        const mergedLayer=legacyView?.layer || layer;
+        await commitFolderChange(next,{writes,archives,geometry:mergedGeometry,view:mergedView,layer:mergedLayer});
+        loadState(next,{geometry:mergedGeometry,view:mergedView,activeLayer:mergedLayer,markers:[...markers.values()],settings});
+        legacyImportDone=true;
+        hideLegacyRecovery();
+        notify(`Merged ${writes.length} browser screenshot(s). Both originals are saved in ${backupName}.`);
+      } catch (err) {
+        console.error(err);btn.disabled=false;other.disabled=false;
+        notify(`Merge stopped: ${err.message}. Original browser map and recovery files are retained.`,true,true);
+      }
+    }
+    async function chooseFolderOnly() {
+      if (!folderReady) return;
+      if (!confirm('Use only the folder map for now? Your old browser screenshots will NOT be deleted, and you can still recover them from the ⋯ menu.')) return;
+      const btn=$('folderOnlyButton');btn.disabled=true;
+      try { await queueFolderWrite(()=>writeFolderIndex()); legacyImportDone=true; hideLegacyRecovery(); notify('Using folder map. Browser screenshots remain available for manual recovery.'); }
+      catch(err) {btn.disabled=false;notify(`Could not update folder: ${err.message}`,true,true);}
+    }
+    async function inspectFolder(handle) {
+      // Checking permission is NOT enough: a remembered directory handle may
+      // remain authorised even after its directory is deleted from disk.
+      // Requesting the first entry validates the directory without modifying it.
+      const first = await handle.entries().next();
+      const hasEntries = !first.done;
+      const index = await getFolderIndex(handle);
+      if (!index && hasEntries) {
+        throw new Error('This folder is not empty but has no MONOMOON map.json. Choose an empty folder or a MONOMOON map folder; existing files will not be overwritten.');
+      }
+      const loaded = index ? await readFolderTiles(index,handle) : new Map();
+      return {index,loaded};
+    }
+    async function connectFolder(preselected=null, forcePicker=false) {
+      closeMenu();
+      if (folderConnecting) return;
+      if ((folderBusy || mutationBusy) && !preselected) {
+        notify('Finish the current map save before changing folders.',true);
+        return;
+      }
+      if (!preselected && !window.showDirectoryPicker) {
+        notify('Local folder saving requires Chrome or Edge with folder access enabled.',true,true);
+        return;
+      }
+      const formerHandle=folderHandle, formerReady=folderReady;
+      const formerError=lastFolderError, formerMissing=folderMissing;
+      folderConnecting=true;updateSaveStatus();
+      try {
+        let selected;
+        // Deliberately avoid requestPermission() on an old directory handle.
+        // Chrome's persistent-permission prompt lists *all* folders previously
+        // granted to this page, even if only one handle is requested. Instead,
+        // reconnect through a fresh, explicit directory selection. A handle
+        // whose permission is already granted can still reconnect silently on
+        // page load through the preselected path below.
+        if (preselected) selected=preselected;
+        else selected=await window.showDirectoryPicker({id:'monomoon-map',mode:'readwrite'});
+        const perm=await selected.queryPermission({mode:'readwrite'});
+        // The picker itself requests read/write access only for the newly
+        // selected directory. Do not call requestPermission() here: that would
+        // reintroduce Chrome's historical-multiple-folders prompt.
+        if (perm!=='granted') throw new Error('Read/write permission was not granted to the selected folder');
+
+        // Verify the folder is physically present and read it before touching
+        // either the displayed map or any files in the selected directory.
+        const {index,loaded}=await inspectFolder(selected);
+        await folderQueue;
+        // The picker returns a new handle object even when the user selected
+        // the same folder again. Avoid a misleading overwrite warning then.
+        let sameFolder = selected === formerHandle;
+        if (!sameFolder && formerHandle && typeof selected.isSameEntry === 'function') {
+          try { sameFolder = await selected.isSameEntry(formerHandle); }
+          catch { /* Deleted or inaccessible old folder: treat as different. */ }
+        }
+        if (index && (tiles.size || markers.size) && !sameFolder) {
+          if (!confirm(`The selected folder already contains a MONOMOON map with ${loaded.size} screenshot(s).\n\nLoad that map instead of the currently displayed one? The existing files in both locations will NOT be overwritten.`)) return;
+        }
+        if (!index) {
+          if (tiles.size || markers.size) {
+            if (!confirm(`The selected folder is empty. Copy your currently displayed map (${tiles.size} screenshots and ${markers.size} markers) into it?\n\nThe original folder will not be modified. Cancel to keep the current map and choose another folder.`)) return;
+          }
+          // Check that the image blobs are still readable before writing any
+          // files: deleting the original directory can invalidate File objects.
+          for (const t of tiles.values()) {
+            try { await t.blob.slice(0,1).arrayBuffer(); }
+            catch { throw new Error(`A screenshot at ${t.layer} (${t.col}, ${t.row}) is no longer readable after the old folder was removed. Restore that folder or use an earlier map backup.`); }
+          }
+          // The destination was verified empty. Write map.json last, and
+          // clean up files from this attempt if a copy fails halfway through.
+          const createdDirs=new Set();
+          try {
+            for (const t of tiles.values()) {
+              createdDirs.add(t.layer);
+              await putFileInDirectory(selected,t);
+            }
+            await writeJSON(selected,'map.json',folderIndex());
+          } catch (copyErr) {
+            try {
+              for (const name of createdDirs) await selected.removeEntry(name,{recursive:true});
+              try { await selected.removeEntry('map.json'); }
+              catch (err) { if (err.name!=='NotFoundError') throw err; }
+            } catch (cleanupErr) { console.warn('Partial folder copy could not be cleaned up',cleanupErr); }
+            throw copyErr;
+          }
+        }
+        // Switch to the chosen directory only after all reads/writes succeed.
+        folderHandle=selected;folderReady=true;folderMissing=false;lastFolderError='';
+        legacyImportDone=index?.legacyImportDone === true || !index;
+        if (index) loadState(loaded,index);
+        if (db) { try { await writeMeta('folderHandle',selected); }
+          catch (err) { console.warn('Could not remember folder handle (screenshots remain on disk).',err); } }
+        if (legacyTiles.length && !legacyImportDone) await showLegacyRecovery();
+        else if (!index) notify(`Map copied to the new folder (${tiles.size} screenshots).`);
+        else notify(`Loaded ${loaded.size} screenshot(s) directly from the local folder.`);
+      } catch(err) {
+        if (err.name==='AbortError') return;
+        folderHandle=formerHandle;folderReady=formerReady;
+        if (forcePicker) {
+          lastFolderError=formerError;folderMissing=formerMissing;
+          notify(`Could not select that folder: ${err.message}. Your displayed map was kept.`,true,true);
+        } else if (!formerReady) lostFolder(err);
+        else notify(`Unable to open that folder: ${err.message}. Your previous folder remains connected.`,true,true);
+      } finally {
+        folderConnecting=false;updateSaveStatus();
+      }
+    }
+    async function reloadFolder() {
+      closeMenu();
+      if (!folderReady) return;
+      if (!confirm('Reload the map directly from the folder? All saved screenshots will be read from disk.')) return;
+      try {
+        await folderQueue;
+        const index=await getFolderIndex();
+        if (!index) throw new Error('No map.json in the selected folder');
+        const loaded=await readFolderTiles(index);
+        loadState(loaded,index);
+        notify(`Reloaded ${loaded.size} screenshot(s) from the folder.`);
+      } catch(err) { lostFolder(err); }
+    }
+
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      viewport = {w: rect.width, h: rect.height, dpr: Math.min(devicePixelRatio || 1, 2.5)};
+      canvas.width = Math.round(viewport.w * viewport.dpr);
+      canvas.height = Math.round(viewport.h * viewport.dpr);
+      requestDraw();
+    }
+    function requestDraw() {
+      if (drawScheduled) return;
+      drawScheduled = true;
+      requestAnimationFrame(draw);
+    }
+    function trimmedRect(bitmap) {
+      const g = geometry || pending?.proposedGeometry;
+      if (!g) return {sx: 0, sy: 0, sw: bitmap.width, sh: bitmap.height};
+      // Scale the four reference crop margins to each screenshot's actual dimensions.
+      const xScale = bitmap.width / g.refWidth;
+      const yScale = bitmap.height / g.refHeight;
+      const sx = Math.min(bitmap.width - 1, Math.max(0, Math.round(g.left * xScale)));
+      const sy = Math.min(bitmap.height - 1, Math.max(0, Math.round(g.top * yScale)));
+      const right = Math.min(bitmap.width - sx - 1, Math.max(0, Math.round(g.right * xScale)));
+      const bottom = Math.min(bitmap.height - sy - 1, Math.max(0, Math.round(g.bottom * yScale)));
+      return {sx, sy, sw: bitmap.width - sx - right, sh: bitmap.height - sy - bottom};
+    }
+    function isVisible(t, w, h, o, margin = 0) {
+      const x = o.x + t.col * w, y = o.y + t.row * h;
+      return x < viewport.w + margin && x + w > -margin && y < viewport.h + margin && y + h > -margin;
+    }
+    // Zoom-aware display cache. A single fixed 100-image cache made screenshots
+    // repeatedly disappear and reload when >100 were in the viewport.
+    // Keep originals on disk: these are only disposable, in-memory draw bitmaps.
+    const DISPLAY_LEVELS = {
+      small:  { height: 128, bitmap: 'smallBitmap',  loading: 'loadingSmall',  limit: 750 },
+      medium: { height: 384, bitmap: 'mediumBitmap', loading: 'loadingMedium', limit: 200 },
+      full:   { height: null, bitmap: 'bitmap',       loading: 'loading',       limit: 75 }
+    };
+    const decodeQueue = [];
+    let activeDecodes = 0;
+    const MAX_SIMULTANEOUS_DECODES = 3;
+    let cacheTrimAt = 0;
+
+    function preferredLevel() {
+      const physicalHeight = view.cellHeight * viewport.dpr;
+      return physicalHeight <= 100 ? 'small' : physicalHeight <= 340 ? 'medium' : 'full';
+    }
+    function closeBitmap(b) { if (b?.close) b.close(); }
+    function clearTileDisplay(t) {
+      for (const level of Object.values(DISPLAY_LEVELS)) {
+        closeBitmap(t[level.bitmap]);
+        t[level.bitmap] = null;
+        t[level.loading] = null;
+      }
+    }
+    function visibleForCache(t) {
+      if (t.layer !== layer && !(overlayOther && t.layer !== layer) && moving?.sourceId !== t.id) return false;
+      const d = dims();
+      return isVisible(t, d.w, d.h, origin(), 20) || moving?.sourceId === t.id;
+    }
+    function trimBitmapCache() {
+      // A lower-resolution copy is enough at low zoom. Once it is loaded,
+      // discard redundant larger bitmaps even if the tile is on-screen.
+      // The lower-resolution copy remains visible throughout the transition.
+      const wanted = preferredLevel();
+      for (const t of tiles.values()) {
+        if (!visibleForCache(t)) continue;
+        if (wanted === 'small' && t.smallBitmap) {
+          closeBitmap(t.mediumBitmap); t.mediumBitmap = null;
+          closeBitmap(t.bitmap); t.bitmap = null;
+        } else if (wanted === 'medium' && t.mediumBitmap) {
+          closeBitmap(t.bitmap); t.bitmap = null;
+        }
+      }
+      // Never evict the only on-screen copy of a screenshot, regardless of
+      // how many tiles are visible. Discard only off-screen cached images.
+      for (const level of Object.values(DISPLAY_LEVELS)) {
+        const loaded = [...tiles.values()].filter(t => t[level.bitmap]);
+        if (loaded.length <= level.limit) continue;
+        const removable = loaded.filter(t => !visibleForCache(t));
+        removable.sort((a,b) => (a.lastUsed || 0) - (b.lastUsed || 0));
+        for (let i = 0; i < Math.min(removable.length, loaded.length - level.limit); i++) {
+          const t = removable[i];
+          closeBitmap(t[level.bitmap]);
+          t[level.bitmap] = null;
+        }
+      }
+    }
+    function trimCacheOccasionally() {
+      const now = performance.now();
+      if (now - cacheTrimAt < 750) return;
+      cacheTrimAt = now;
+      trimBitmapCache();
+    }
+    async function decode(blob) {
+      if ('createImageBitmap' in window) return createImageBitmap(blob);
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(blob), img = new Image();
+        img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Unable to read image')); };
+        img.src = url;
+      });
+    }
+    async function decodeAtLevel(blob, levelName) {
+      const spec = DISPLAY_LEVELS[levelName];
+      if (!spec.height) return decode(blob);
+      const image = 'createImageBitmap' in window
+        ? await createImageBitmap(blob, {resizeHeight: spec.height, resizeQuality: 'high'})
+        : await decode(blob);
+      // Keep the fallback correct if a browser ignores resizeHeight.
+      if (image.height <= spec.height * 1.15) return image;
+      const cvs = document.createElement('canvas');
+      cvs.height = spec.height;
+      cvs.width = Math.max(1, Math.round(image.width * cvs.height / image.height));
+      cvs.getContext('2d').drawImage(image, 0, 0, cvs.width, cvs.height);
+      closeBitmap(image);
+      if ('createImageBitmap' in window) return createImageBitmap(cvs);
+      return cvs;
+    }
+    function pumpImageLoads() {
+      while (activeDecodes < MAX_SIMULTANEOUS_DECODES && decodeQueue.length) {
+        const task = decodeQueue.shift();
+        const {t, levelName, token} = task, spec = DISPLAY_LEVELS[levelName];
+        if (tiles.get(t.id) !== t || t[spec.loading] !== token || !visibleForCache(t)) {
+          if (t[spec.loading] === token) t[spec.loading] = null;
+          continue;
+        }
+        activeDecodes++;
+        (async () => {
+          try {
+            const bm = await decodeAtLevel(t.blob, levelName);
+            if (tiles.get(t.id) !== t || t[spec.loading] !== token) {
+              closeBitmap(bm);
+              return;
+            }
+            t[spec.bitmap] = bm;
+            t.lastUsed = performance.now();
+            trimCacheOccasionally();
+            requestDraw();
+          } catch (err) {
+            console.error('Could not decode screenshot', err);
+            // Avoid endless retries or an unbounded toast loop for a bad file.
+            if (!t.failedLevels) t.failedLevels = new Set();
+            t.failedLevels.add(levelName);
+            notify('Unable to display a saved screenshot.', true);
+          } finally {
+            if (t[spec.loading] === token) t[spec.loading] = null;
+            activeDecodes--;
+            pumpImageLoads();
+          }
+        })();
+      }
+    }
+    function ensureBitmap(t, levelName = preferredLevel()) {
+      const spec = DISPLAY_LEVELS[levelName];
+      if (t[spec.bitmap] || t[spec.loading] || t.failedLevels?.has(levelName)) return;
+      const token = {};
+      t[spec.loading] = token;
+      decodeQueue.push({t, levelName, token});
+      pumpImageLoads();
+    }
+    function displayBitmap(t, levelName = preferredLevel()) {
+      ensureBitmap(t, levelName);
+      // While loading the preferred size, reuse ANY already decoded size.
+      // This avoids blanks when changing zoom levels, and avoids a second wait.
+      const choices = levelName === 'small' ? ['small', 'medium', 'full']
+        : levelName === 'medium' ? ['medium', 'full', 'small']
+        : ['full', 'medium', 'small'];
+      for (const name of choices) {
+        const image = t[DISPLAY_LEVELS[name].bitmap];
+        if (image) return image;
+      }
+      return null;
+    }
+    function drawTiles(w, h, o, currentLayer, opacity) {
+      ctx.save();
+      ctx.globalAlpha = opacity;
+      const level = preferredLevel();
+      for (const t of tiles.values()) {
+        if (t.layer !== currentLayer || !isVisible(t, w, h, o)) continue;
+        const image = displayBitmap(t, level);
+        if (!image) continue;
+        t.lastUsed = performance.now();
+        const r = trimmedRect(image);
+        const x = o.x + t.col * w, y = o.y + t.row * h;
+        // A fractional-pixel overlap prevents hairline gaps at non-integer zoom levels.
+        const bleed = 0.55 / viewport.dpr;
+        ctx.drawImage(image, r.sx, r.sy, r.sw, r.sh,
+          x - bleed / 2, y - bleed / 2, w + bleed, h + bleed);
+      }
+      ctx.restore();
+    }
+    function drawGrid(w,h,o,W,H,dpr) {
+      // The grid extends indefinitely in every direction.
+      ctx.beginPath();
+      ctx.lineWidth=1/dpr;
+      ctx.strokeStyle=view.cellHeight<45 ? 'rgba(190,181,220,.24)' : 'rgba(198,190,226,.38)';
+      const minC=Math.floor(-o.x/w)-1,maxC=Math.ceil((W-o.x)/w)+1;
+      const minR=Math.floor(-o.y/h)-1,maxR=Math.ceil((H-o.y)/h)+1;
+      for(let c=minC;c<=maxC;c++) {
+        const x=(Math.round((o.x+c*w)*dpr)+.5)/dpr;
+        ctx.moveTo(x,0);ctx.lineTo(x,H);
+      }
+      for(let r=minR;r<=maxR;r++) {
+        const y=(Math.round((o.y+r*h)*dpr)+.5)/dpr;
+        ctx.moveTo(0,y);ctx.lineTo(W,y);
+      }
+      ctx.stroke();
+    }
+    function draw() {
+      drawScheduled = false;
+      const {w: W, h: H, dpr} = viewport;
+      if (!W || !H) return;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.imageSmoothingEnabled = false; // Keep MONOMOON's pixel art sharp at every zoom level.
+      ctx.fillStyle = '#101019';
+      ctx.fillRect(0, 0, W, H);
+      const {w, h} = dims(), o = origin();
+      if (w <= 0 || h <= 0) return;
+
+      // Empty cells can retain a grid UNDER screenshot images when G is off.
+      // Opaque screenshots cover the background grid,
+      // but uncovered cells retain their lines. When G is on, draw grid only once.
+      if (settings.backgroundGridVisible && !settings.gridVisible) drawGrid(w,h,o,W,H,dpr);
+      if (overlayOther) drawTiles(w, h, o, layer === 'outside' ? 'inside' : 'outside', .17);
+      drawTiles(w, h, o, layer, 1);
+      // G independently controls the grid drawn OVER screenshots.
+      if (settings.gridVisible) drawGrid(w,h,o,W,H,dpr);
+
+      const source = moving ? tiles.get(moving.sourceId) : null;
+      const preview = pending?.bitmap || (source ? displayBitmap(source) : null);
+      if ((pending || source) && hovering) {
+        const x = o.x + hovering.col * w, y = o.y + hovering.row * h;
+        if (x + w >= 0 && x < W && y + h >= 0 && y < H) {
+          const id = keyFor(layer, hovering.col, hovering.row);
+          const occupied = tiles.has(id) && id !== moving?.sourceId;
+          ctx.save();
+          ctx.fillStyle = 'rgba(161,127,238,.15)';
+          ctx.fillRect(x, y, w, h);
+          if (preview) {
+            const r = trimmedRect(preview);
+            ctx.globalAlpha = .67;
+            ctx.drawImage(preview, r.sx, r.sy, r.sw, r.sh, x, y, w, h);
+            ctx.globalAlpha = 1;
+          }
+          ctx.strokeStyle = occupied ? '#ffbd94' : '#d8b7ff';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([8, 5]);
+          ctx.strokeRect(x + 1, y + 1, Math.max(0, w - 2), Math.max(0, h - 2));
+          ctx.setLineDash([]);
+          if (w > 90 && h > 60) {
+            const label = occupied ? 'REPLACE?' : source ? 'MOVE HERE' : '';
+            if (label) {
+              ctx.fillStyle = 'rgba(22,13,24,.84)';
+              ctx.fillRect(x + 7, y + 7, occupied ? 84 : 94, 24);
+              ctx.fillStyle = occupied ? '#ffe1cf' : '#ede2ff';
+              ctx.font = 'bold 11px system-ui';
+              ctx.fillText(label, x + 15, y + 23);
+            }
+          }
+          ctx.restore();
+        }
+      }
+      drawMarkers();
+      positionMarkerEditor();
+      updateMarkerTooltip();
+      trimCacheOccasionally();
+    }
+
+    function zoomAt(x, y, factor, save = true) {
+      const oldD = dims(), oldO = origin();
+      const colAtPointer = (x - oldO.x) / oldD.w, rowAtPointer = (y - oldO.y) / oldD.h;
+      view.cellHeight = Math.min(MAX_CELL_HEIGHT, Math.max(MIN_CELL_HEIGHT, view.cellHeight * factor));
+      const newD = dims();
+      view.panX = x - colAtPointer * newD.w - viewport.w / 2;
+      view.panY = y - rowAtPointer * newD.h - viewport.h / 2;
+      requestDraw();
+      if (save) persistViewSoon();
+    }
+
+    function detectBlackBorders(bitmap) {
+      // Detect nearly solid-colour bars, rather than merely *dark* areas. The
+      // game itself has large nearly-black regions that must NEVER be cropped.
+      const w = bitmap.width, h = bitmap.height;
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const cctx = c.getContext('2d', {willReadFrequently: true});
+      cctx.drawImage(bitmap, 0, 0);
+      const pixels = cctx.getImageData(0, 0, w, h).data;
+      const corner = [pixels[0], pixels[1], pixels[2]];
+      const threshold = 3;
+      function sameAt(x, y) {
+        const i = (y * w + x) * 4;
+        return pixels[i + 3] >= 240 &&
+          Math.abs(pixels[i] - corner[0]) <= threshold &&
+          Math.abs(pixels[i + 1] - corner[1]) <= threshold &&
+          Math.abs(pixels[i + 2] - corner[2]) <= threshold;
+      }
+      // If corners do not share a border colour, do not guess an unsafe crop.
+      if (!sameAt(w - 1, 0) || !sameAt(0, h - 1) || !sameAt(w - 1, h - 1)) {
+        return {left: 0, right: 0, top: 0, bottom: 0};
+      }
+      function solidLine(index, vertical) {
+        const length = vertical ? h : w;
+        const samples = Math.min(160, length);
+        let matches = 0;
+        for (let i = 0; i < samples; i++) {
+          const pos = Math.floor((i + .5) * length / samples);
+          if (vertical ? sameAt(index, pos) : sameAt(pos, index)) matches++;
+        }
+        return matches >= samples - Math.max(0, Math.floor(samples * .005));
+      }
+      let left = 0, right = 0, top = 0, bottom = 0;
+      while (left < Math.floor(w * .45) && solidLine(left, true)) left++;
+      while (right < Math.floor(w * .45) && solidLine(w - right - 1, true)) right++;
+      while (top < Math.floor(h * .40) && solidLine(top, false)) top++;
+      while (bottom < Math.floor(h * .40) && solidLine(h - bottom - 1, false)) bottom++;
+      return {left, right, top, bottom};
+    }
+
+    function normalizeGeometry(g) {
+      return {...g, top: g.top ?? 0, bottom: g.bottom ?? 0};
+    }
+
+    async function prepareScreenshot(blob) {
+      if (!ready) { notify('The map is still loading. Please paste again.', true); return; }
+      if (!requireFolder()) return;
+      if (mutationBusy) {notify('A screenshot is still saving. Please paste again afterwards.',true);return;}
+      cancelMove(); closeTileMenu(); closeMarkerMenu(); closeMarkerEditor();
+      try {
+        const bitmap = await decode(blob);
+        if (bitmap.width < 40 || bitmap.height < 40) { if (bitmap.close) bitmap.close(); notify('That image is too small for a game screenshot.', true); return; }
+        const detected = detectBlackBorders(bitmap);
+        // MONOMOON's reference capture size has a measured crop supplied by
+        // the player. Use it on a NEW map; never overwrite saved adjustments.
+        const fitted = bitmap.width === 2048 && bitmap.height === 857
+          ? {left: 440, right: 440, top: 18, bottom: 14} : detected;
+        const guess = {refWidth: bitmap.width, refHeight: bitmap.height, ...fitted};
+        if (pending?.bitmap?.close) pending.bitmap.close();
+        pending = {blob, bitmap, proposedGeometry: guess};
+        canvas.classList.add('placing');
+        if (!hovering) hovering = cellAt(viewport.w / 2, viewport.h / 2);
+        updateWelcome(); requestDraw();
+        const activeCrop = geometry || guess;
+        const trim = `${geometry ? 'Current crop' : 'Detected crop'}: ${activeCrop.left}px left, ${activeCrop.right}px right, ${activeCrop.top}px top, ${activeCrop.bottom}px bottom.`;
+        notify(`Screenshot ready — click a grid square to place it. ${trim} Press Esc to cancel.`, false, true);
+      } catch (err) { console.error(err); notify('Unable to read the pasted image.', true); }
+    }
+    function cancelPending() {
+      if (!pending) return;
+      if (pending.bitmap?.close) pending.bitmap.close();
+      pending = null; canvas.classList.remove('placing');
+      $('toast').hidden = true;
+      updateWelcome(); requestDraw();
+    }
+    async function placePending(col, row) {
+      if (!pending || !requireFolder()) return;
+      if (folderBusy || mutationBusy) {notify('The previous save is still finishing.',true);return;}
+      const id = keyFor(layer,col,row), old=tiles.get(id);
+      if (old && !confirm(`Replace the existing ${layerName(layer).toLowerCase()} screenshot at column ${col}, row ${row}? The old image will be copied to recovery-history first.`)) return;
+      const t={id,layer,col,row,blob:pending.blob,bitmap:pending.bitmap,loading:null,lastUsed:performance.now()};
+      const next=new Map(tiles);next.set(id,t);
+      mutationBusy=true;
+      try {
+        await commitFolderChange(next,{writes:[t],archives:old?[old]:[],geometry:geometry || pending.proposedGeometry});
+        if (!geometry) geometry=pending.proposedGeometry;
+        if (old) clearTileDisplay(old);
+        tiles.set(id,t);
+        pending=null;canvas.classList.remove('placing');
+        updateSaveStatus();updateWelcome();requestDraw();
+        notify(`Saved screenshot to folder: ${layerName(layer)} (${col}, ${row}).`);
+      } catch(err){ console.error(err); notify(`Screenshot NOT saved: ${err.message}. Reconnect the folder and try again.`,true,true); }
+      finally { mutationBusy=false;flushDeferredIndexWrite(); }
+    }
+    async function eraseAt(col,row,whichLayer=layer) {
+      if (!requireFolder()) return;
+      const id=keyFor(whichLayer,col,row),t=tiles.get(id);
+      if (!t || mutationBusy || folderBusy) return;
+      if (!confirm(`Delete the ${layerName(whichLayer).toLowerCase()} screenshot at column ${col}, row ${row}? A recovery copy will be kept in the folder.`)) return;
+      const next=new Map(tiles);next.delete(id);
+      mutationBusy=true;
+      try {
+        await commitFolderChange(next,{archives:[t],removes:[t]});
+        clearTileDisplay(t);
+        tiles.delete(id); updateSaveStatus();updateWelcome();requestDraw();
+        notify('Screenshot deleted from map folder. Recovery copy retained.');
+      } catch(err) {notify(`Deletion not saved: ${err.message}`,true,true);}
+      finally {mutationBusy=false;flushDeferredIndexWrite();}
+    }
+    async function moveTo(col,row) {
+      if (!moving || !requireFolder()) return;
+      if (mutationBusy || folderBusy) {notify('A save is still finishing.',true);return;}
+      const source=tiles.get(moving.sourceId);
+      if (!source) {cancelMove();notify('Original screenshot no longer available.',true);return;}
+      const destId=keyFor(layer,col,row);
+      if (destId===source.id) {cancelMove(true);return;}
+      const replaced=tiles.get(destId);
+      if (replaced && !confirm(`Replace the existing ${layerName(layer).toLowerCase()} screenshot at (${col}, ${row})? A recovery copy will be kept.`))return;
+      const dest={id:destId,layer,col,row,blob:source.blob,bitmap:source.bitmap,loading:null,
+        smallBitmap:source.smallBitmap || null,mediumBitmap:source.mediumBitmap || null,
+        loadingSmall:null,loadingMedium:null,failedLevels:source.failedLevels || null,lastUsed:performance.now()};
+      const next=new Map(tiles);next.delete(source.id);next.set(destId,dest);
+      mutationBusy=true;
+      try {
+        await commitFolderChange(next,{writes:[dest],removes:[source],archives:replaced?[replaced]:[]});
+        if (replaced) clearTileDisplay(replaced);
+        tiles.delete(source.id);tiles.set(destId,dest);
+        moving=null;updateMoveUI();updateSaveStatus();requestDraw();
+        notify(`Screenshot moved and saved to folder: ${layerName(layer)} (${col}, ${row}).`);
+      } catch(err) {notify(`Move not saved: ${err.message}. Original map position is unchanged.`,true,true);}
+      finally {mutationBusy=false;flushDeferredIndexWrite();}
+    }
+
+    async function exportBackup() {
+      closeMenu();
+      notify('Preparing map backup…',false,true);
+      try {
+        // If the folder hasn't been reconnected, provide direct recovery of
+        // the legacy browser map rather than exporting an empty placeholder.
+        const useLegacy=!folderReady && legacyTiles.length>0;
+        const chosen=useLegacy ? legacyTiles : [...tiles.values()];
+        const all=[];
+        for (const t of chosen) all.push({layer:t.layer,col:t.col,row:t.row,data:await blobToDataURL(t.blob)});
+        const backup={format:'MONOMOON-Map',version:1,exportedAt:new Date().toISOString(),
+          geometry:useLegacy ? legacyGeometry : geometry,
+          view:useLegacy ? (legacyView?.view||view) : {...view},
+          activeLayer:useLegacy ? (legacyView?.layer || 'outside') : layer,
+          markers:useLegacy ? [] : [...markers.values()],
+          settings:useLegacy ? {...defaultSettings} : {...settings}, tiles:all};
+        const data=new Blob([JSON.stringify(backup)],{type:'application/json'});
+        const url=URL.createObjectURL(data),a=document.createElement('a');
+        a.href=url;a.download=`MONOMOON-Map-backup-${new Date().toISOString().slice(0,10)}.json`;
+        document.body.appendChild(a);a.click();a.remove();
+        setTimeout(()=>URL.revokeObjectURL(url),20000);
+        notify(`Backup exported with ${all.length} screenshot(s)${useLegacy?' from older browser storage':''}.`);
+      } catch(err){console.error(err);notify(`Backup failed: ${err.message}`,true);}
+    }
+    function blobToDataURL(blob) {
+      return new Promise((resolve,reject)=>{
+        const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(r.error);r.readAsDataURL(blob);
+      });
+    }
+    function dataURLToBlob(url) {
+      const m=/^data:(image\/(?:png|jpeg|webp|gif));base64,([\s\S]+)$/.exec(url);
+      if (!m) throw new Error('Unsupported image in backup');
+      const binary=atob(m[2]),bytes=new Uint8Array(binary.length);
+      for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+      return new Blob([bytes],{type:m[1]});
+    }
+    async function restoreBackup(file) {
+      if (!file || !requireFolder()) return;
+      if(mutationBusy) return;
+      closeMenu();
+      try {
+        const parsed=JSON.parse(await file.text());
+        if(parsed.format!=='MONOMOON-Map'||parsed.version!==1||!Array.isArray(parsed.tiles))throw new Error('Invalid backup format');
+        if(!confirm(`Restore ${parsed.tiles.length} screenshots from this backup into the folder? Existing screenshots on BOTH layers will be backed up first, then replaced.`))return;
+        const next=new Map();
+        for(const e of parsed.tiles){
+          if(!['inside','outside'].includes(e.layer)||!Number.isSafeInteger(e.col)||!Number.isSafeInteger(e.row))throw new Error('Invalid tile coordinates');
+          const t={id:keyFor(e.layer,e.col,e.row),layer:e.layer,col:e.col,row:e.row,blob:dataURLToBlob(e.data),bitmap:null,loading:null,lastUsed:0};
+          if(next.has(t.id))throw new Error('Duplicate coordinate in backup');
+          next.set(t.id,t);
+        }
+        const g=validGeometry(parsed.geometry)?normalizeGeometry(parsed.geometry):null;
+        const v=parsed.view&&Number.isFinite(parsed.view.cellHeight)&&Number.isFinite(parsed.view.panX)&&Number.isFinite(parsed.view.panY)
+          ? parsed.view : {cellHeight:340,panX:0,panY:0};
+        const l=parsed.activeLayer==='inside'?'inside':'outside';
+        const replacementMarkers = new Map();
+        for (const m of parsed.markers || []) {
+          if (!validMarker(m) || replacementMarkers.has(m.id)) throw new Error('Invalid marker in backup');
+          replacementMarkers.set(m.id,normaliseMarker(m));
+        }
+        const replacementSettings = cleanSettings(parsed.settings);
+        mutationBusy=true;
+        notify('Creating full recovery copy before restoring backup…',false,true);
+        const backupName=await snapshotBeforeMigration();
+        const removes=[...tiles.values()].filter(t=>!next.has(t.id));
+        await commitFolderChange(next,{writes:[...next.values()],removes,geometry:g,view:v,layer:l,markers:replacementMarkers,settings:replacementSettings});
+        loadState(next,{geometry:g,view:v,activeLayer:l,markers:[...replacementMarkers.values()],settings:replacementSettings});
+        notify(`Restored ${next.size} screenshot(s) to folder. Previous map in ${backupName}.`);
+      }catch(err){console.error(err);notify(`Restore failed: ${err.message}. Original map and recovery files are preserved.`,true,true);}
+      finally{mutationBusy=false;flushDeferredIndexWrite();}
+    }
+
+    function validGeometry(g) {
+      if (!g) return false;
+      const {refWidth: w, refHeight: h, left, right, top = 0, bottom = 0} = g;
+      return [w, h, left, right, top, bottom].every(Number.isFinite) &&
+        w > 0 && h > 0 && [left, right, top, bottom].every(v => v >= 0 && Number.isInteger(v)) &&
+        left + right < w && top + bottom < h;
+    }
+
+    function draftCrop() {
+      return {
+        left: Number($('cropLeft').value), right: Number($('cropRight').value),
+        top: Number($('cropTop').value), bottom: Number($('cropBottom').value)
+      };
+    }
+    function setDraftCrop(crop) {
+      for (const edge of ['left', 'right', 'top', 'bottom']) {
+        $('crop' + edge[0].toUpperCase() + edge.slice(1)).value = Math.round(crop[edge] ?? 0);
+      }
+      drawCropPreview();
+    }
+    function clearCropPreview() {
+      if (ownsCropPreviewBitmap && cropPreviewBitmap?.close) cropPreviewBitmap.close();
+      ownsCropPreviewBitmap = false;
+      cropPreviewBitmap = null;
+    }
+    function drawCropPreview() {
+      const g = geometry || pending?.proposedGeometry;
+      if (!g) return;
+      const crop = draftCrop();
+      const w = g.refWidth - crop.left - crop.right;
+      const h = g.refHeight - crop.top - crop.bottom;
+      $('cropSize').textContent = w > 0 && h > 0 && Object.values(crop).every(v => Number.isInteger(v) && v >= 0)
+        ? `Resulting tile: ${w} × ${h} pixels` : 'Invalid crop: the remaining tile must have positive width and height.';
+      const preview = $('cropPreview');
+      const bm = cropPreviewBitmap;
+      if (!bm) {
+        const pc = preview.getContext('2d');
+        pc.clearRect(0, 0, preview.width, preview.height);
+        pc.fillStyle = '#100e16'; pc.fillRect(0, 0, preview.width, preview.height);
+        pc.fillStyle = '#b7a9c4'; pc.font = '13px system-ui';
+        pc.fillText('Loading screenshot preview…', 16, preview.height / 2);
+        return;
+      }
+      const scale = Math.min(430 / bm.width, 200 / bm.height, 1);
+      preview.width = Math.max(1, Math.round(bm.width * scale));
+      preview.height = Math.max(1, Math.round(bm.height * scale));
+      const pc = preview.getContext('2d');
+      pc.imageSmoothingEnabled = false;
+      pc.drawImage(bm, 0, 0, preview.width, preview.height);
+      const left = Math.max(0, Math.min(preview.width, crop.left / g.refWidth * preview.width));
+      const right = Math.max(0, Math.min(preview.width, crop.right / g.refWidth * preview.width));
+      const top = Math.max(0, Math.min(preview.height, crop.top / g.refHeight * preview.height));
+      const bottom = Math.max(0, Math.min(preview.height, crop.bottom / g.refHeight * preview.height));
+      pc.fillStyle = 'rgba(237, 28, 36, .70)';
+      pc.fillRect(0, 0, left, preview.height);
+      pc.fillRect(preview.width - right, 0, right, preview.height);
+      pc.fillRect(0, 0, preview.width, top);
+      pc.fillRect(0, preview.height - bottom, preview.width, bottom);
+      pc.strokeStyle = '#f6f0ff'; pc.lineWidth = 1;
+      pc.strokeRect(left + .5, top + .5, Math.max(0, preview.width - left - right - 1), Math.max(0, preview.height - top - bottom - 1));
+    }
+
+    async function openCrop() {
+      closeMenu();
+      const g = geometry || pending?.proposedGeometry;
+      if (!g) { notify('Paste a screenshot first to establish its dimensions.', true); return; }
+      clearCropPreview();
+      $('cropInfo').textContent = `Original screenshot: ${g.refWidth} × ${g.refHeight} px. Red areas will be removed. Adjustments apply to every existing tile on both map layers.`;
+      $('cropDialog').hidden = false;
+      setDraftCrop(g);
+      $('cropLeft').focus();
+      if (pending?.bitmap) {
+        cropPreviewBitmap = pending.bitmap;
+        ownsCropPreviewBitmap = false;
+        drawCropPreview();
+      } else {
+        const firstTile = tiles.values().next().value;
+        if (!firstTile) { $('cropSize').textContent += ' Paste a screenshot to preview.'; return; }
+        try {
+          const bitmap = await decode(firstTile.blob);
+          if ($('cropDialog').hidden) { if (bitmap.close) bitmap.close(); return; }
+          clearCropPreview(); cropPreviewBitmap = bitmap; ownsCropPreviewBitmap = true;
+          drawCropPreview();
+        } catch (err) { console.warn('Screenshot preview unavailable', err); }
+      }
+    }
+    function closeCrop() { $('cropDialog').hidden = true; clearCropPreview(); }
+    function autoCrop() {
+      const g = geometry || pending?.proposedGeometry;
+      if (!g || !cropPreviewBitmap) { notify('Paste a screenshot or save a tile first to auto-detect the borders.', true); return; }
+      const detected = detectBlackBorders(cropPreviewBitmap);
+      const scaled = {
+        left: Math.round(detected.left * g.refWidth / cropPreviewBitmap.width),
+        right: Math.round(detected.right * g.refWidth / cropPreviewBitmap.width),
+        top: Math.round(detected.top * g.refHeight / cropPreviewBitmap.height),
+        bottom: Math.round(detected.bottom * g.refHeight / cropPreviewBitmap.height)
+      };
+      setDraftCrop(scaled);
+      notify('Borders detected. Check the preview and click Apply crop to save.');
+    }
+    async function applyCrop(ev) {
+      ev.preventDefault();
+      if(!requireFolder()) return;
+      if(mutationBusy || folderBusy) {notify('Finish saving the previous change before adjusting the crop.',true);return;}
+      const g = geometry || pending?.proposedGeometry;
+      if (!g) return;
+      const next = {...g, ...draftCrop()};
+      if (!validGeometry(next)) { notify('Enter valid non-negative whole-pixel borders smaller than the image dimensions.', true); return; }
+      try {
+        if (geometry) { await queueFolderWrite(() => writeFolderIndex(folderIndex(tiles, next))); geometry=next; }
+        else pending.proposedGeometry=next;
+        closeCrop(); requestDraw();
+        notify(`Crop saved in folder: ${next.left}px left, ${next.right}px right, ${next.top}px top, ${next.bottom}px bottom. Tile: ${next.refWidth - next.left - next.right} × ${next.refHeight - next.top - next.bottom}.`);
+      } catch (err) { console.error(err); notify('Crop NOT saved. Reconnect the map folder.', true, true); }
+    }
+
+    function addEvents() {
+      window.addEventListener('resize', resize);
+      window.addEventListener('paste', e => {
+        const item = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith('image/'));
+        if (item) { e.preventDefault(); prepareScreenshot(item.getAsFile()); }
+      });
+      canvas.addEventListener('wheel', e => {
+        closeTileMenu();
+        e.preventDefault();
+        zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * (e.deltaMode === 1 ? .035 : .00135)));
+      }, {passive: false});
+      canvas.addEventListener('pointerdown', e => {
+        if (e.button !== 0 && e.button !== 1) return;
+        canvas.setPointerCapture(e.pointerId);
+        pointers.set(e.pointerId, {x: e.clientX, y: e.clientY});
+        if (pointers.size === 2) {
+          const pts = [...pointers.values()];
+          pinch = {distance: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y), centreX: (pts[0].x + pts[1].x) / 2, centreY: (pts[0].y + pts[1].y) / 2};
+          pointerDown = null;
+        } else {
+          pointerDown = {x: e.clientX, y: e.clientY, button: e.button};
+          dragStart = {x: e.clientX, y: e.clientY, panX: view.panX, panY: view.panY};
+          dragging = false;
+        }
+      });
+      canvas.addEventListener('pointermove', e => {
+        mousePoint = {x:e.clientX,y:e.clientY};
+        hovering = cellAt(e.clientX, e.clientY);
+        if (pointers.has(e.pointerId)) pointers.set(e.pointerId, {x: e.clientX, y: e.clientY});
+        if (pointers.size === 2 && pinch) {
+          const pts = [...pointers.values()];
+          const distance = Math.max(1, Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y));
+          const centreX = (pts[0].x + pts[1].x) / 2, centreY = (pts[0].y + pts[1].y) / 2;
+          view.panX += centreX - pinch.centreX; view.panY += centreY - pinch.centreY;
+          zoomAt(centreX, centreY, distance / Math.max(1, pinch.distance), false);
+          pinch = {distance, centreX, centreY};
+          persistViewSoon();
+        } else if (pointerDown && dragStart && pointers.size === 1) {
+          const dx = e.clientX - dragStart.x, dy = e.clientY - dragStart.y;
+          if (Math.hypot(dx, dy) > 4) dragging = true;
+          if (dragging) {
+            canvas.classList.add('dragging');
+            view.panX = dragStart.panX + dx; view.panY = dragStart.panY + dy;
+            hovering = cellAt(e.clientX, e.clientY);
+            persistViewSoon();
+          }
+        }
+        if (pending || movingMarkerId || dragging || overlayOther || settings.markersVisible) requestDraw();
+        else updateMarkerTooltip();
+      });
+      function finishPointer(e, cancel) {
+        if (!pointers.has(e.pointerId)) return;
+        const wasPinching = pointers.size > 1 || pinch !== null;
+        pointers.delete(e.pointerId);
+        if (pointers.size < 2) pinch = null;
+        if (!cancel && pointerDown && !dragging && !wasPinching && e.button === 0) {
+          const c = cellAt(e.clientX, e.clientY);
+          if (movingMarkerId) {const p=worldAt(e.clientX,e.clientY);moveMarkerTo(p.x,p.y);}
+          else if (moving) moveTo(c.col, c.row);
+          else if (pending) placePending(c.col, c.row);
+        }
+        if (pointers.size === 0) {
+          canvas.classList.remove('dragging'); dragging = false; pointerDown = null; dragStart = null;
+        } else if (pointers.size === 1) {
+          const p = [...pointers.values()][0];
+          pointerDown = null; dragStart = {x: p.x, y: p.y, panX: view.panX, panY: view.panY};
+        }
+        requestDraw();
+      }
+      canvas.addEventListener('pointerup', e => finishPointer(e, false));
+      canvas.addEventListener('pointercancel', e => finishPointer(e, true));
+      canvas.addEventListener('pointerleave', () => { if (!pointerDown) { hovering = null; mousePoint=null;updateMarkerTooltip();requestDraw(); } });
+      canvas.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        if (moving || movingMarkerId) { notify('Click a destination to finish moving, or press Esc to cancel.'); return; }
+        if (editingMarker) {closeMarkerEditor();}
+        const marker=markerAt(e.clientX,e.clientY);
+        if (marker) {openMarkerMenu(e.clientX,e.clientY,marker);return;}
+        const c=cellAt(e.clientX,e.clientY),t=tiles.get(keyFor(layer,c.col,c.row));
+        openTileMenu(e.clientX,e.clientY,t,worldAt(e.clientX,e.clientY));
+      });
+      canvas.addEventListener('dragover', e => e.preventDefault());
+      canvas.addEventListener('drop', e => {
+        e.preventDefault();
+        const f = [...(e.dataTransfer?.files || [])].find(f => f.type.startsWith('image/'));
+        if (f) prepareScreenshot(f);
+      });
+      window.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+          stopKeyboardPan();
+          if(migrationPending)return;
+          closeCrop();closeMenu();closeTileMenu();closeMarkerMenu();closeMarkerColourMenu();closeMarkerEditor();cancelMove(true);cancelPending();return;
+        }
+        if (e.target?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+        const key=e.key.length===1?e.key.toLowerCase():e.key;
+        if (Object.hasOwn(panDirections,key) && !e.ctrlKey && !e.metaKey && !e.altKey &&
+            $('cropDialog').hidden && $('markerEditor').hidden && $('legacyDialog').hidden &&
+            $('menu').hidden && $('tileMenu').hidden && $('markerMenu').hidden && $('markerColourMenu').hidden &&
+            !migrationPending && !e.target?.closest?.('.menu, .tile-menu, .marker-colour-menu, .marker-colour-choices, [role="dialog"]')) {
+          e.preventDefault();
+          heldPanKeys.add(key);
+          if (!panAnimation) panAnimation=requestAnimationFrame(animateKeyboardPan);
+          return;
+        }
+        if ((e.code === 'Space' || e.key === ' ') && !e.repeat && $('cropDialog').hidden &&
+            $('markerEditor').hidden && !migrationPending && !e.metaKey && !e.altKey) {
+          e.preventDefault();
+          if (e.ctrlKey) toggleMarkers(); else toggleLayer();
+          return;
+        }
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        if (key === 'g' && !e.repeat && $('cropDialog').hidden && $('markerEditor').hidden && $('legacyDialog').hidden && !migrationPending) {
+          e.preventDefault();toggleGrid();return;
+        }
+        if (e.key.toLowerCase() === 'i' && !e.ctrlKey && !e.metaKey && !e.altKey) toggleLayer();
+        if ((e.key === '=' || e.key === '+') && !e.ctrlKey) { zoomAt(viewport.w/2, viewport.h/2, 1.25); }
+        if (e.key === '-' && !e.ctrlKey) { zoomAt(viewport.w/2, viewport.h/2, .8); }
+      });
+      window.addEventListener('keyup',e=>{
+        const key=e.key.length===1?e.key.toLowerCase():e.key;
+        if (heldPanKeys.delete(key) && !heldPanKeys.size) stopKeyboardPan();
+      });
+      window.addEventListener('blur',stopKeyboardPan);
+      document.addEventListener('visibilitychange',()=>{if(document.hidden)stopKeyboardPan();});
+      document.addEventListener('focusin',e=>{if(e.target!==canvas)stopKeyboardPan();});
+      $('layerButton').addEventListener('click', toggleLayer);
+      $('markersButton').addEventListener('click', toggleMarkers);
+      $('gridButton').addEventListener('click', toggleGrid);
+      $('moreButton').addEventListener('click', e => { e.stopPropagation(); $('menu').hidden = !$('menu').hidden; $('moreButton').setAttribute('aria-expanded', String(!$('menu').hidden)); });
+      document.addEventListener('pointerdown', e => {
+        if (!e.target.closest('.menu') && !e.target.closest('#moreButton')) closeMenu();
+        if (!e.target.closest('#tileMenu')) closeTileMenu();
+        if (!e.target.closest('#markerMenu')) closeMarkerMenu();
+        if (!e.target.closest('#markerColourMenu') && !e.target.closest('#changeMarkerColourButton')) closeMarkerColourMenu();
+      });
+      $('moveTileButton').addEventListener('click', () => {
+        const id = contextTileId;
+        if (id) beginMove(id);
+      });
+      $('deleteTileButton').addEventListener('click', () => {
+        const id = contextTileId;
+        closeTileMenu();
+        if (!id) return;
+        const t = tiles.get(id);
+        if (t) eraseAt(t.col, t.row, t.layer);
+      });
+      $('addMarkerButton').addEventListener('click', () => {
+        const point=contextPoint ? {...contextPoint} : null;
+        closeTileMenu();
+        if(point) openMarkerEditor(null,point);
+      });
+      $('editMarkerButton').addEventListener('click', () => {
+        const m=markers.get(contextMarkerId);
+        closeMarkerMenu();if(m)openMarkerEditor(m);
+      });
+      $('changeMarkerColourButton').addEventListener('click', () => {
+        const marker=markers.get(contextMarkerId);
+        if(marker) {
+          const rect=$('markerMenu').getBoundingClientRect();
+          openMarkerColourMenu(marker,rect.right+6,rect.top);
+        }
+      });
+      $('moveMarkerButton').addEventListener('click', () => {
+        const id=contextMarkerId;closeMarkerMenu();if(id)beginMarkerMove(id);
+      });
+      $('deleteMarkerButton').addEventListener('click', () => {
+        const id=contextMarkerId;closeMarkerMenu();if(id)deleteMarker(id);
+      });
+      $('markerColourMenu').addEventListener('submit',saveMarkerAppearance);
+      // Capture Enter from either palette *before* the focused swatch can
+      // generate a native click. A single keypress submits exactly once.
+      // The same listener works for both the new-marker and appearance editors.
+      function savePaletteOnEnter(e) {
+        if (e.key !== 'Enter' || e.repeat || e.shiftKey || e.altKey) return;
+        if (!e.target.closest('.marker-colour-swatch, .marker-shape-swatch')) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        const form=e.currentTarget;
+        const submitButton=form=== $('markerEditor') ? $('markerSave') : $('appearanceSave');
+        if (!submitButton.disabled) form.requestSubmit(submitButton);
+      }
+      $('markerEditor').addEventListener('keydown',savePaletteOnEnter,true);
+      $('markerColourMenu').addEventListener('keydown',savePaletteOnEnter,true);
+      // Ctrl+Enter also saves from elsewhere in the appearance editor. Plain
+      // Enter on Cancel/Save keeps the standard button action.
+      $('markerColourMenu').addEventListener('keydown',e=>{
+        if (e.key==='Enter' && (e.ctrlKey || e.metaKey) && !e.repeat && !e.shiftKey && !e.altKey) {
+          e.preventDefault();e.stopPropagation();
+          if (!$('appearanceSave').disabled) $('markerColourMenu').requestSubmit($('appearanceSave'));
+        }
+      });
+      $('appearanceCancel').addEventListener('click',closeMarkerColourMenu);
+      $('markerEditor').addEventListener('submit',saveMarkerEditor);
+      $('markerText').addEventListener('input',growMarkerTextArea);
+      $('markerText').addEventListener('keydown', e => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !e.repeat) {
+          e.preventDefault();
+          $('markerEditor').requestSubmit();
+        }
+      });
+      $('markerCancel').addEventListener('click',closeMarkerEditor);
+      $('cancelMoveButton').addEventListener('click', () => cancelMove(true));
+      $('cropButton').addEventListener('click', openCrop);
+      $('cropCancel').addEventListener('click', closeCrop);
+      $('cropDialog').addEventListener('pointerdown', e => { if (e.target === $('cropDialog')) closeCrop(); });
+      $('cropForm').addEventListener('submit', applyCrop);
+      $('autoCropButton').addEventListener('click', autoCrop);
+      for (const id of ['cropLeft', 'cropRight', 'cropTop', 'cropBottom']) $('' + id).addEventListener('input', drawCropPreview);
+      $('guideCheckbox').addEventListener('change', e => setSetting('overlayOther',e.target.checked));
+      $('backgroundGridCheckbox').addEventListener('change', e => setSetting('backgroundGridVisible',e.target.checked));
+      $('panSpeedSlider').addEventListener('input',e=>{
+        const v=+e.target.value;
+        settings.panSpeed=v; // Update active panning immediately; persist on commit.
+        $('panSpeedValue').textContent=`${v}%`;
+      });
+      $('panSpeedSlider').addEventListener('change',e=>setSetting('panSpeed',+e.target.value));
+      $('markerSizeSlider').addEventListener('input',e=>{
+        settings.markerSize=markerSizeFromSlider(e.target.value);
+        $('markerSizeValue').textContent=`${settings.markerSize}%`;
+        e.target.setAttribute('aria-valuenow', String(settings.markerSize));
+        e.target.setAttribute('aria-valuetext', `${settings.markerSize}%`);
+        requestDraw();updateMarkerTooltip();
+      });
+      $('markerSizeSlider').addEventListener('change',e=>setSetting('markerSize',markerSizeFromSlider(e.target.value)));
+      $('hideHintCheckbox').addEventListener('change', e => setSetting('hideHint',e.target.checked));
+      $('hideZoomCheckbox').addEventListener('change', e => setSetting('hideZoom',e.target.checked));
+      $('hideTogglesCheckbox').addEventListener('change', e => setSetting('hideToggles',e.target.checked));
+      $('hideTitleCheckbox').addEventListener('change', e => setSetting('hideTitle',e.target.checked));
+      $('folderButton').addEventListener('click', () => connectFolder());
+      $('reconnectButton').addEventListener('click', () => connectFolder());
+      $('selectNewFolderBanner').addEventListener('click', () => connectFolder(null,true));
+      $('selectNewFolderButton').addEventListener('click', () => connectFolder(null,true));
+      $('mergeLegacyButton').addEventListener('click', mergeLegacy);
+      $('folderOnlyButton').addEventListener('click', chooseFolderOnly);
+      $('legacyImportButton').addEventListener('click', () => {closeMenu();showLegacyRecovery();});
+      $('clearBrowserButton').addEventListener('click', clearOldBrowserCopies);
+      $('loadFolderButton').addEventListener('click', reloadFolder);
+      $('exportButton').addEventListener('click', exportBackup);
+      $('importButton').addEventListener('click', () => { if(!requireFolder())return; closeMenu(); $('importInput').click(); });
+      $('importInput').addEventListener('change', e => { const f = e.target.files?.[0]; if (f) restoreBackup(f); e.target.value = ''; });
+      $('zoomIn').addEventListener('click', () => zoomAt(viewport.w / 2, viewport.h / 2, 1.25));
+      $('zoomOut').addEventListener('click', () => zoomAt(viewport.w / 2, viewport.h / 2, .8));
+    }
+
+    async function clearOldBrowserCopies() {
+      closeMenu();
+      if (!folderReady || !legacyImportDone || !legacyTiles.length || !db) return;
+      if (!confirm(`Remove ${legacyTiles.length} OLD screenshot(s) from browser storage? Only do this after confirming all your screenshots are in the local folder and that your recovery copy is intact. The folder files will NOT be changed.`)) return;
+      try {
+        const tx=db.transaction('tiles','readwrite');
+        tx.objectStore('tiles').clear();
+        await txDone(tx);
+        legacyTiles=[];
+        updateSaveStatus();
+        notify('Old browser screenshot copies removed. The local folder remains unchanged.');
+      } catch(err) {notify(`Could not clear old browser copies: ${err.message}`,true,true);}
+    }
+    async function start() {
+      addEvents();resize();
+      let rememberedHandle=null;
+      try {
+        db=await openDB();
+        const [oldTiles,oldGeometry,oldView,savedHandle]=await Promise.all([
+          readAll('tiles'),readMeta('geometry'),readMeta('view'),readMeta('folderHandle')]);
+        legacyTiles=oldTiles.map(t=>({...t,bitmap:null,loading:null,lastUsed:0}));
+        legacyGeometry=validGeometry(oldGeometry)?normalizeGeometry(oldGeometry):null;
+        legacyView=oldView;
+        rememberedHandle=savedHandle;
+      } catch(err) { console.warn('Old browser map unavailable; folder mode still works.',err);db=null; }
+      ready=true;
+      updateDisplaySettings();
+      updateLayerButton();updateSaveStatus();updateWelcome();requestDraw();
+      if (rememberedHandle && typeof rememberedHandle.queryPermission==='function') {
+        folderHandle=rememberedHandle;
+        try {
+          if (await rememberedHandle.queryPermission({mode:'readwrite'})==='granted') {
+            await connectFolder(rememberedHandle); // Read from disk; NEVER automatically sync browser data.
+          }
+        } catch(err) {console.warn('Folder permission needs user action',err);lastFolderError=err.message;}
+      }
+      updateSaveStatus();
+    }
+    start();
+  })();
+  </script>
+</body>
+</html>
